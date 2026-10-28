@@ -1,38 +1,39 @@
 <#
 ====================================================================================================
-ROBOCOPY CONTINUOUS FILE REPLICATION
+ROBOCOPY CONTINUOUS FILE REPLICATION - MULTI-FOLDER MAPPING
 ====================================================================================================
 
 DESCRIPTION
 -----------
-Continuously monitors a remote SMB share and copies files to a local destination.
+Monitors a remote SMB share and replicates files from multiple source folders to their respective
+destinations on the local machine using Robocopy.
 
 FEATURES
 --------
 ✅ Source Server NOT Domain Joined
 ✅ Username / Password Authentication
 ✅ Automatic Share Reconnection
-✅ Continuous Monitoring
-✅ Multiple File Type Support
+✅ Multiple Source-to-Destination Folder Mappings
+✅ Multiple File Type Support (Global & Per-Folder)
 ✅ Only New / Changed Files Copied
 ✅ No Duplicate Copies
 ✅ Configurable Retry Logic
 ✅ Verbose Robocopy Logging
-✅ Log Rotation By Maximum Size
+✅ Log Rotation By Maximum Size (Current & Detail Logs)
 ✅ Archived Log Cleanup
 ✅ Log Retention Cleanup
-✅ Error Handling
+✅ Per-Folder Error Handling & Status Reporting
 
 HOW IT WORKS
 ------------
-1. Connects to Source SMB Share using supplied credentials.
-2. Verifies share accessibility.
-3. Executes Robocopy.
-4. Copies only NEW or MODIFIED files.
-5. Skips existing unchanged files.
-6. Repeats every configured polling interval.
-7. Rotates logs when size exceeds configured threshold.
-8. Retains only configured number of archived logs.
+1. Authenticates and connects to the Source SMB Share using supplied credentials.
+2. Iterates through each configured Folder Mapping.
+3. Automatically creates local destination folder if it doesn't exist.
+4. Executes Robocopy for each mapped folder pair.
+5. Copies only NEW or MODIFIED files (/XO /FFT /Z /E).
+6. Skips existing unchanged files.
+7. Logs detailed Robocopy operations per folder.
+8. Rotates logs when size exceeds configured threshold.
 9. Removes old logs based on retention period.
 
 ====================================================================================================
@@ -41,12 +42,12 @@ CONFIGURATION
 #>
 
 # ====================================================================
-# SOURCE SETTINGS
+# SOURCE SERVER SETTINGS
 # ====================================================================
 
 $SourceServerIP      = "10.91.13.101"
 
-# Share Name Only
+# Primary Share Name
 $SourceShareName     = "rwindows"
 
 # Examples:
@@ -57,13 +58,49 @@ $SourceUsername      = "10.91.13.101\EVS"
 $SourcePassword      = "evs"
 
 # ====================================================================
-# DESTINATION SETTINGS
+# FOLDER MAPPINGS (SOURCE FOLDER -> DESTINATION FOLDER)
+# ====================================================================
+# Easily map multiple source folders to different destination paths.
+#
+# HOW TO CONFIGURE:
+#   - Name        : (Optional) Friendly label for logging (e.g., "Line 1")
+#   - Source      : Subfolder inside the share (e.g., "Line1" or "Line1\Data").
+#                   Leave as "" or "\" to copy the root of the share.
+#                   Or provide a full UNC path (e.g., "\\10.91.13.101\rwindows\Line1").
+#   - Destination : Target folder path on local drive or network.
+#   - Enabled     : (Optional) Set to $false to temporarily skip a folder.
+#   - FileTypes   : (Optional) Override global $FileTypes for this specific folder.
+#
+# To add a new folder, simply copy and paste a block below:
 # ====================================================================
 
-$DestinationPath     = "D:\EVS\Line1\Avgol\India-Files - India EVS data\Avgol India EVS L1-Data\Current Month"
+$FolderMappings = @(
+    @{
+        Name        = "Line 1"
+        Source      = "\\10.91.13.101\c\PerfLogs"
+        Destination = "C:\temp\TEST\data1"
+        Enabled     = $true
+    },
+    @{
+        Name        = "Line 2"
+        Source      = "\\10.91.13.101\c\EXPORT"
+        Destination = "C:\temp\TEST\data2"
+        Enabled     = $true
+    }
+    # Add more folders as needed:
+    # ,@{
+    #     Name        = "Line 3"
+    #     Source      = "Line3"
+    #     Destination = "D:\EVS\Line3\Avgol\India-Files - India EVS data\Avgol India EVS L3-Data\Current Month"
+    #     Enabled     = $true
+    # }
+)
+
+# Optional Fallback (Used only if $FolderMappings is empty)
+# $DestinationPath     = "D:\EVS\Line1\Avgol\India-Files - India EVS data\Avgol India EVS L1-Data\Current Month"
 
 # ====================================================================
-# FILE TYPES TO COPY
+# DEFAULT FILE TYPES TO COPY
 # ====================================================================
 
 $FileTypes = @(
@@ -87,7 +124,7 @@ $RetryWaitSeconds    = 15
 # LOG SETTINGS
 # ====================================================================
 
-$LogFolder           = "D:\EVS_Scripts\Logs"
+$LogFolder           = "C:\temp\TEST\Logs"
 
 $MaxLogSizeMB        = 10
 $MaxArchivedLogs     = 20
@@ -100,18 +137,28 @@ $LogRetentionDays    = 30
 
 
 # ====================================================================
-# CREATE REQUIRED FOLDERS
+# CREATE REQUIRED LOG DIRECTORY
 # ====================================================================
 
-New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
-New-Item -ItemType Directory -Path $LogFolder -Force | Out-Null
-
-$CurrentLog = Join-Path $LogFolder "Robocopy_Current.log"
-
-if (!(Test-Path $CurrentLog))
+try
 {
-    New-Item -ItemType File -Path $CurrentLog -Force | Out-Null
+    New-Item -ItemType Directory -Path $LogFolder -Force -ErrorAction SilentlyContinue | Out-Null
 }
+catch {}
+
+$CurrentLog = [System.IO.Path]::Combine($LogFolder, "Robocopy_Current.log")
+
+try
+{
+    if (Test-Path -LiteralPath $LogFolder -ErrorAction SilentlyContinue)
+    {
+        if (!(Test-Path -LiteralPath $CurrentLog))
+        {
+            New-Item -ItemType File -Path $CurrentLog -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
+}
+catch {}
 
 
 
@@ -126,12 +173,23 @@ function Write-Log
     )
 
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $FormattedMessage = "$Timestamp - $Message"
 
-    Add-Content `
-        -Path $CurrentLog `
-        -Value "$Timestamp - $Message"
+    Write-Host $FormattedMessage
 
-    Rotate-Logs
+    try
+    {
+        if ($CurrentLog -and (Test-Path -LiteralPath $LogFolder -ErrorAction SilentlyContinue))
+        {
+            Add-Content `
+                -Path $CurrentLog `
+                -Value $FormattedMessage `
+                -ErrorAction SilentlyContinue
+
+            Rotate-Logs
+        }
+    }
+    catch {}
 }
 
 
@@ -140,16 +198,21 @@ function Write-Log
 # LOG ROTATION
 # ====================================================================
 
-function Rotate-Logs
+function Rotate-SingleLog
 {
+    param(
+        [string]$LogFilePath,
+        [string]$ArchivePrefix
+    )
+
     try
     {
-        if (!(Test-Path $CurrentLog))
+        if ([string]::IsNullOrWhiteSpace($LogFilePath) -or !(Test-Path -LiteralPath $LogFilePath -ErrorAction SilentlyContinue))
         {
             return
         }
 
-        $LogFile = Get-Item -LiteralPath $CurrentLog -ErrorAction Stop
+        $LogFile = Get-Item -LiteralPath $LogFilePath -ErrorAction Stop
 
         $SizeMB = [Math]::Round(($LogFile.Length / 1MB), 2)
 
@@ -158,38 +221,46 @@ function Rotate-Logs
             return
         }
 
-        $ArchiveName = "Robocopy_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log"
-
-        $ArchiveFile = Join-Path $LogFolder $ArchiveName
+        $ArchiveName = "$($ArchivePrefix)" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log"
+        $ArchiveFile = [System.IO.Path]::Combine($LogFolder, $ArchiveName)
 
         Move-Item `
-            -Path $CurrentLog `
+            -Path $LogFilePath `
             -Destination $ArchiveFile `
             -Force
 
         New-Item `
             -ItemType File `
-            -Path $CurrentLog `
+            -Path $LogFilePath `
             -Force | Out-Null
 
         Write-Host "Log Rotated: $ArchiveName"
 
         $Archives = Get-ChildItem `
             -Path $LogFolder `
-            -Filter "Robocopy_*.log" |
+            -Filter "$($ArchivePrefix)*.log" `
+            -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending
 
         if ($Archives.Count -gt $MaxArchivedLogs)
         {
             $Archives |
                 Select-Object -Skip $MaxArchivedLogs |
-                Remove-Item -Force
+                Remove-Item -Force -ErrorAction SilentlyContinue
         }
     }
     catch
     {
-        Write-Host "Log Rotation Error: $_"
+        Write-Host "Log Rotation Error ($LogFilePath): $_"
     }
+}
+
+function Rotate-Logs
+{
+    Rotate-SingleLog -LogFilePath $CurrentLog -ArchivePrefix "Robocopy_"
+
+    $DetailedLog = [System.IO.Path]::Combine($LogFolder, "Robocopy_Detail.log")
+    Rotate-SingleLog -LogFilePath $DetailedLog -ArchivePrefix "Robocopy_Detail_"
 }
 
 
@@ -202,15 +273,19 @@ function Cleanup-OldLogs
 {
     try
     {
-        Get-ChildItem `
-            -Path $LogFolder `
-            -Filter "*.log" |
-            Where-Object {
-                $_.LastWriteTime -lt (Get-Date).AddDays(-$LogRetentionDays)
-            } |
-            Remove-Item `
-                -Force `
-                -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $LogFolder -ErrorAction SilentlyContinue)
+        {
+            Get-ChildItem `
+                -Path $LogFolder `
+                -Filter "*.log" `
+                -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.LastWriteTime -lt (Get-Date).AddDays(-$LogRetentionDays)
+                } |
+                Remove-Item `
+                    -Force `
+                    -ErrorAction SilentlyContinue
+        }
     }
     catch
     {
@@ -221,37 +296,156 @@ function Cleanup-OldLogs
 
 
 # ====================================================================
+# HELPER FUNCTIONS
+# ====================================================================
+
+function Resolve-SourcePath
+{
+    param(
+        [string]$Source
+    )
+
+    $Source = if ($Source) { $Source.Trim() } else { "" }
+
+    if ([string]::IsNullOrWhiteSpace($Source) -or $Source -eq "\" -or $Source -eq "/")
+    {
+        return "\\$SourceServerIP\$SourceShareName"
+    }
+    elseif ($Source.StartsWith("\\"))
+    {
+        return $Source.TrimEnd('\', '/')
+    }
+    else
+    {
+        $cleanSub = $Source.TrimStart('\', '/').TrimEnd('\', '/')
+        return "\\$SourceServerIP\$SourceShareName\$cleanSub"
+    }
+}
+
+function Get-NormalizedFolderMappings
+{
+    $normalized = [System.Collections.Generic.List[PSObject]]::new()
+
+    if ($FolderMappings -is [System.Collections.IDictionary])
+    {
+        # Supports dictionary format: @{ "Line1" = "D:\Dest1"; "Line2" = "D:\Dest2" }
+        $index = 1
+        foreach ($key in $FolderMappings.Keys)
+        {
+            $val = $FolderMappings[$key]
+            if ($val -is [System.Collections.IDictionary])
+            {
+                $src     = if ($val.ContainsKey('Source')) { $val.Source } else { $key }
+                $dst     = if ($val.ContainsKey('Destination')) { $val.Destination } else { "" }
+                $enabled = if ($val.ContainsKey('Enabled')) { [bool]$val.Enabled } else { $true }
+                $types   = if ($val.ContainsKey('FileTypes')) { $val.FileTypes } else { $FileTypes }
+                $name    = if ($val.ContainsKey('Name')) { $val.Name } else { "$key" }
+            }
+            else
+            {
+                $src     = $key
+                $dst     = $val
+                $enabled = $true
+                $types   = $FileTypes
+                $name    = if ($key) { "$key" } else { "Folder $index" }
+            }
+
+            $normalized.Add([PSCustomObject]@{
+                Name        = $name
+                Source      = [string]$src
+                Destination = [string]$dst
+                Enabled     = $enabled
+                FileTypes   = $types
+            })
+            $index++
+        }
+    }
+    elseif ($FolderMappings -is [System.Collections.IEnumerable] -and $FolderMappings -isnot [string])
+    {
+        # Supports array format: @( @{ Source = "Line1"; Destination = "D:\..." }, ... )
+        $index = 1
+        foreach ($item in $FolderMappings)
+        {
+            if ($item -is [System.Collections.IDictionary] -or $item -is [PSCustomObject])
+            {
+                $src     = if ($null -ne $item.Source) { $item.Source } elseif ($null -ne $item.SourceSubFolder) { $item.SourceSubFolder } else { "" }
+                $dst     = if ($null -ne $item.Destination) { $item.Destination } elseif ($null -ne $item.DestinationPath) { $item.DestinationPath } else { "" }
+                $enabled = if ($null -ne $item.Enabled) { [bool]$item.Enabled } else { $true }
+                $types   = if ($item.FileTypes) { $item.FileTypes } else { $FileTypes }
+                $name    = if ($item.Name) { $item.Name } elseif ($src) { "$src" } else { "Folder $index" }
+
+                $normalized.Add([PSCustomObject]@{
+                    Name        = $name
+                    Source      = [string]$src
+                    Destination = [string]$dst
+                    Enabled     = $enabled
+                    FileTypes   = $types
+                })
+                $index++
+            }
+        }
+    }
+    elseif ($DestinationPath)
+    {
+        # Fallback to legacy single $DestinationPath if defined
+        $normalized.Add([PSCustomObject]@{
+            Name        = "Default Share"
+            Source      = ""
+            Destination = $DestinationPath
+            Enabled     = $true
+            FileTypes   = $FileTypes
+        })
+    }
+
+    return $normalized.ToArray()
+}
+
+
+
+# ====================================================================
 # CONNECT TO SOURCE SHARE
 # ====================================================================
 
 function Connect-SourceShare
 {
+    param(
+        [string]$SharePath = "\\$SourceServerIP\$SourceShareName"
+    )
+
     try
     {
-        $UNCPath = "\\$SourceServerIP\$SourceShareName"
+        $UNCPath = $SharePath.Trim().TrimEnd('\', '/')
+
+        # Extract root share (e.g. \\server\share) for net use
+        if ($UNCPath.StartsWith("\\"))
+        {
+            $parts = $UNCPath.TrimStart('\').Split('\')
+            if ($parts.Length -ge 2)
+            {
+                $UNCPath = "\\$($parts[0])\$($parts[1])"
+            }
+        }
 
         Write-Log "Connecting to $UNCPath"
 
-        cmd.exe /c "net use $UNCPath /delete /y" *> $null
+        cmd.exe /c "net use `"$UNCPath`" /delete /y" *> $null
 
-        cmd.exe /c "net use $UNCPath /user:$SourceUsername $SourcePassword /persistent:no" *> $null
+        cmd.exe /c "net use `"$UNCPath`" /user:$SourceUsername $SourcePassword /persistent:no" *> $null
 
         Start-Sleep -Seconds 2
 
-        if (Test-Path $UNCPath)
+        if (Test-Path -LiteralPath $UNCPath)
         {
-            Write-Log "Connection successful"
-
+            Write-Log "Connection successful to $UNCPath"
             return $true
         }
 
-        Write-Log "Connection failed"
-
+        Write-Log "Connection failed to $UNCPath"
         return $false
     }
     catch
     {
-        Write-Log "Connection Error: $_"
+        Write-Log "Connection Error for $UNCPath : $_"
         return $false
     }
 }
@@ -259,33 +453,67 @@ function Connect-SourceShare
 
 
 # ====================================================================
-# RUN ROBOCOPY
+# RUN ROBOCOPY FOR A SINGLE MAPPING
 # ====================================================================
 
 function Start-RobocopyCopy
 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$Mapping
+    )
+
     try
     {
-        $SourcePath = "\\$SourceServerIP\$SourceShareName"
+        $SourcePath = Resolve-SourcePath $Mapping.Source
+        $DestPath   = $Mapping.Destination.Trim().TrimEnd('\', '/')
 
-        $FileMask = $FileTypes -join " "
+        # Ensure destination folder exists
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            Write-Log "[$($Mapping.Name)] Creating destination directory: $DestPath"
+            New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
+        }
 
-        $DetailedLog = Join-Path $LogFolder "Robocopy_Detail.log"
+        # Check source path availability
+        if (!(Test-Path -LiteralPath $SourcePath))
+        {
+            Write-Log "[$($Mapping.Name)] WARNING: Source folder not found or inaccessible: $SourcePath"
+            return $false
+        }
 
-        Write-Log "Starting Robocopy Sync"
+        $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
+        $DetailedLog = [System.IO.Path]::Combine($LogFolder, "Robocopy_Detail.log")
 
+        Write-Log "[$($Mapping.Name)] Starting Robocopy Sync"
+        Write-Log "[$($Mapping.Name)] Source: $SourcePath"
+        Write-Log "[$($Mapping.Name)] Dest  : $DestPath"
+
+        # Robocopy command arguments
         $Arguments = @(
-            "`"$SourcePath`""
-            "`"$DestinationPath`""
-            $FileMask
-            "/E"
-            "/Z"
-            "/FFT"
-            "/XO"
-            "/R:$RetryAttempts"
-            "/W:$RetryWaitSeconds"
-            "/NP"
-            "/TEE"
+            "`"$SourcePath`"",
+            "`"$DestPath`""
+        )
+
+        foreach ($ft in $activeTypes)
+        {
+            if ($ft -and $ft.Trim())
+            {
+                $ft.Trim().Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object {
+                    $Arguments += $_
+                }
+            }
+        }
+
+        $Arguments += @(
+            "/E",
+            "/Z",
+            "/FFT",
+            "/XO",
+            "/R:$RetryAttempts",
+            "/W:$RetryWaitSeconds",
+            "/NP",
+            "/TEE",
             "/LOG+:`"$DetailedLog`""
         )
 
@@ -298,33 +526,122 @@ function Start-RobocopyCopy
 
         $ExitCode = $Process.ExitCode
 
-        switch ($ExitCode)
+        $resultMsg = switch ($ExitCode)
         {
-            0 { Write-Log "Robocopy Result: No changes detected." }
-
-            1 { Write-Log "Robocopy Result: Files copied successfully." }
-
-            2 { Write-Log "Robocopy Result: Extra files/directories exist at destination." }
-
-            3 { Write-Log "Robocopy Result: Files copied and extra destination files detected." }
-
-            4 { Write-Log "Robocopy Result: Mismatched files detected." }
-
-            5 { Write-Log "Robocopy Result: Files copied with mismatches detected." }
-
-            6 { Write-Log "Robocopy Result: Extras and mismatches detected." }
-
-            7 { Write-Log "Robocopy Result: Files copied, extras and mismatches detected." }
-
-            Default { Write-Log "Robocopy Error/Warning. Exit Code: $ExitCode" }
+            0 { "No changes detected." }
+            1 { "Files copied successfully." }
+            2 { "Extra files/directories exist at destination." }
+            3 { "Files copied and extra destination files detected." }
+            4 { "Mismatched files detected." }
+            5 { "Files copied with mismatches detected." }
+            6 { "Extras and mismatches detected." }
+            7 { "Files copied, extras and mismatches detected." }
+            Default { "Robocopy warning/error. Exit Code: $ExitCode" }
         }
 
-        Write-Log "Robocopy Completed"
+        if ($ExitCode -le 7)
+        {
+            Write-Log "[$($Mapping.Name)] Robocopy Result: $resultMsg (Exit Code: $ExitCode)"
+            return $true
+        }
+        else
+        {
+            Write-Log "[$($Mapping.Name)] Robocopy Failed: $resultMsg (Exit Code: $ExitCode)"
+            return $false
+        }
     }
     catch
     {
-        Write-Log "Robocopy Exception: $_"
+        Write-Log "[$($Mapping.Name)] Robocopy Exception: $_"
+        return $false
     }
+}
+
+
+
+# ====================================================================
+# RUN REPLICATION CYCLE FOR ALL MAPPINGS
+# ====================================================================
+
+function Invoke-Replication
+{
+    $Mappings = @(Get-NormalizedFolderMappings)
+
+    if ($Mappings.Count -eq 0)
+    {
+        Write-Log "No folder mappings defined. Please configure `$FolderMappings in the script."
+        return
+    }
+
+    # Identify all distinct root UNC shares that need connection
+    $rootShares = @()
+    foreach ($m in $Mappings)
+    {
+        if ($m.Enabled)
+        {
+            $src = Resolve-SourcePath $m.Source
+            if ($src.StartsWith("\\"))
+            {
+                $parts = $src.TrimStart('\').Split('\')
+                if ($parts.Length -ge 2)
+                {
+                    $root = "\\$($parts[0])\$($parts[1])"
+                    if ($rootShares -notcontains $root)
+                    {
+                        $rootShares += $root
+                    }
+                }
+            }
+        }
+    }
+
+    if ($rootShares.Count -eq 0)
+    {
+        $rootShares += "\\$SourceServerIP\$SourceShareName"
+    }
+
+    # Connect to SMB share(s)
+    $connectionFailures = 0
+    foreach ($share in $rootShares)
+    {
+        if (-not (Connect-SourceShare -SharePath $share))
+        {
+            $connectionFailures++
+        }
+    }
+
+    if ($connectionFailures -eq $rootShares.Count)
+    {
+        Write-Log "All source shares are unreachable. Skipping copy cycle."
+        return
+    }
+
+    # Process each folder mapping
+    $successCount = 0
+    $failureCount = 0
+    $skippedCount = 0
+
+    foreach ($mapping in $Mappings)
+    {
+        if (-not $mapping.Enabled)
+        {
+            Write-Log "[$($mapping.Name)] Skipped (Disabled in configuration)"
+            $skippedCount++
+            continue
+        }
+
+        $success = Start-RobocopyCopy -Mapping $mapping
+        if ($success)
+        {
+            $successCount++
+        }
+        else
+        {
+            $failureCount++
+        }
+    }
+
+    Write-Log "Replication Cycle Finished: $successCount succeeded, $failureCount failed, $skippedCount skipped."
 }
 
 
@@ -333,35 +650,39 @@ function Start-RobocopyCopy
 # STARTUP INFORMATION
 # ====================================================================
 
+$ConfiguredMappings = @(Get-NormalizedFolderMappings)
+
 Write-Log "=================================================="
-Write-Log "Robocopy Monitoring Started"
-Write-Log "Source Server    : $SourceServerIP"
-Write-Log "Source Share     : $SourceShareName"
-Write-Log "Destination Path : $DestinationPath"
-Write-Log "Polling Interval : $PollingIntervalSec Seconds"
-Write-Log "File Types       : $($FileTypes -join ', ')"
-Write-Log "Max Log Size     : $MaxLogSizeMB MB"
-Write-Log "Max Archives     : $MaxArchivedLogs"
-Write-Log "Retention Days   : $LogRetentionDays"
+Write-Log "Robocopy Multi-Folder Replication Started"
+Write-Log "Source Server       : $SourceServerIP"
+Write-Log "Source Share        : $SourceShareName"
+Write-Log "Configured Folders  : $($ConfiguredMappings.Count)"
+foreach ($m in $ConfiguredMappings)
+{
+    $status = if ($m.Enabled) { "ENABLED" } else { "DISABLED" }
+    $resolvedSrc = Resolve-SourcePath $m.Source
+    Write-Log "  * [$status] $($m.Name)"
+    Write-Log "      Source      : $resolvedSrc"
+    Write-Log "      Destination : $($m.Destination)"
+}
+Write-Log "Polling Interval    : $PollingIntervalSec Seconds"
+Write-Log "Default File Types  : $($FileTypes -join ', ')"
+Write-Log "Max Log Size        : $MaxLogSizeMB MB"
+Write-Log "Max Archives        : $MaxArchivedLogs"
+Write-Log "Retention Days      : $LogRetentionDays"
 Write-Log "=================================================="
+
 
 
 # ====================================================================
-# MAIN LOOP
+# MAIN EXECUTION
 # ====================================================================
 
 try
 {
     Cleanup-OldLogs
 
-    if (Connect-SourceShare)
-    {
-        Start-RobocopyCopy
-    }
-    else
-    {
-        Write-Log "Source server unavailable."
-    }
+    Invoke-Replication
 }
 catch
 {

@@ -27,9 +27,9 @@ CONFIGURATION
 # CONFIGURATION
 # ==================================================
 
-$TaskName = "EVS File Replication"
+$TaskName = "Copy Script v3"
 
-$ScriptPath = "D:\EVS_Scripts\copy-script-v3.ps1"
+$ScriptPath = "C:\temp\TEST\copy-script-v3.ps1"
 
 $RunAsUser = "SYSTEM"
 
