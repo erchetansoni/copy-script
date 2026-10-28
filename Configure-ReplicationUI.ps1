@@ -1,6 +1,6 @@
 <#
 ====================================================================================================
-EVS FILE REPLICATION CONFIGURATOR & TASK INSTALLER (GUI)
+AVGOL COPY MASTER - REPLICATION CONFIGURATOR & TASK INSTALLER (GUI)
 ====================================================================================================
 Description:
 A modern, standalone Windows WPF GUI to configure multi-folder SMB replication,
@@ -17,7 +17,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="EVS File Replication Configurator"
+    Title="Avgol Copy Master"
     Width="940" Height="780"
     MinWidth="820" MinHeight="660"
     WindowStartupLocation="CenterScreen"
@@ -126,7 +126,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Avgol File Replication Manager" FontSize="18" FontWeight="Bold" Foreground="#ffffff"/>
+                <TextBlock Text="Avgol Copy Master" FontSize="18" FontWeight="Bold" Foreground="#ffffff"/>
                 <TextBlock Text="Configure multi-folder Robocopy synchronization and Windows Task Scheduler" FontSize="11" Foreground="#8b949e" Margin="0,2,0,0"/>
             </StackPanel>
             <Button x:Name="btnLoadConfig" Grid.Column="1" Content="Reload From Local Script" Style="{StaticResource SecondaryButton}" Height="30" VerticalAlignment="Center"/>
@@ -714,7 +714,7 @@ function Generate-RobocopyScriptContent
     $template = @'
 <#
 ====================================================================================================
-ROBOCOPY CONTINUOUS FILE REPLICATION - AUTO-GENERATED
+AVGOL COPY MASTER - AUTO-GENERATED FILE REPLICATION
 ====================================================================================================
 Generated On: __GENERATED_TIMESTAMP__
 Configured Mappings: __MAPPING_COUNT__
@@ -1319,7 +1319,7 @@ $btnLoadConfig.Add_Click({
 # ====================================================================
 
 $window.Add_Loaded({
-    Write-ConsoleLog "EVS File Replication Configurator initialized." "SUCCESS"
+    Write-ConsoleLog "Avgol Copy Master initialized." "SUCCESS"
     Write-ConsoleLog "Ready. Configure your SMB source and local destinations below." "INFO"
 
     # Preload from local copy-script-v3.ps1 if present

@@ -1,6 +1,6 @@
 <#
 ====================================================================================================
-ROBOCOPY CONTINUOUS FILE REPLICATION - MULTI-FOLDER MAPPING
+AVGOL COPY MASTER - MULTI-FOLDER FILE REPLICATION
 ====================================================================================================
 
 DESCRIPTION

@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 :: ====================================================================
-:: EVS Replication Configurator Launcher
+:: Avgol Copy Master Launcher
 :: ====================================================================
 
 :: Check for Administrative privileges
@@ -15,10 +15,10 @@ if %errorLevel% neq 0 (
 
 :: Switch to script directory
 cd /d "%~dp0"
-title EVS File Replication Configurator
+title Avgol Copy Master
 
 echo ====================================================================
-echo Starting EVS File Replication Configurator GUI...
+echo Starting Avgol Copy Master GUI...
 echo ====================================================================
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Configure-ReplicationUI.ps1"
