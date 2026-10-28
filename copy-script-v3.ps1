@@ -42,20 +42,21 @@ CONFIGURATION
 #>
 
 # ====================================================================
-# SOURCE SERVER SETTINGS
+# SOURCE SERVER AUTHENTICATION
 # ====================================================================
-
-$SourceServerIP      = "10.91.13.101"
-
-# Primary Share Name
-$SourceShareName     = "rwindows"
-
+# Credentials used to authenticate to remote SMB shares.
 # Examples:
 # 10.91.13.101\FileUser
 # SERVERNAME\FileUser
 
-$SourceUsername      = "10.91.13.101\EVS"
-$SourcePassword      = "evs"
+$SourceUsername      = "10.91.13.204\admin"
+$SourcePassword      = "Avgol2002"
+
+# Note: If you provide Full UNC paths in $FolderMappings below
+# (e.g. "\\10.91.13.101\c\PerfLogs"), $SourceShareName is NOT needed.
+# (Optional fallback for relative subfolder paths only):
+# $SourceServerIP    = "10.91.13.101"
+# $SourceShareName   = "rwindows"
 
 # ====================================================================
 # FOLDER MAPPINGS (SOURCE FOLDER -> DESTINATION FOLDER)
@@ -77,13 +78,13 @@ $SourcePassword      = "evs"
 $FolderMappings = @(
     @{
         Name        = "Line 1"
-        Source      = "\\10.91.13.101\c\PerfLogs"
+        Source      = "\\10.91.13.204\qw\Test1"
         Destination = "C:\temp\TEST\data1"
         Enabled     = $true
     },
     @{
         Name        = "Line 2"
-        Source      = "\\10.91.13.101\c\EXPORT"
+        Source      = "\\10.91.13.204\qw\test2"
         Destination = "C:\temp\TEST\data2"
         Enabled     = $true
     }
@@ -104,7 +105,7 @@ $FolderMappings = @(
 # ====================================================================
 
 $FileTypes = @(
-    "*.txt"
+    "*.csv"
 )
 
 # ====================================================================
@@ -307,18 +308,25 @@ function Resolve-SourcePath
 
     $Source = if ($Source) { $Source.Trim() } else { "" }
 
-    if ([string]::IsNullOrWhiteSpace($Source) -or $Source -eq "\" -or $Source -eq "/")
-    {
-        return "\\$SourceServerIP\$SourceShareName"
-    }
-    elseif ($Source.StartsWith("\\"))
+    if ($Source.StartsWith("\\"))
     {
         return $Source.TrimEnd('\', '/')
     }
+    elseif (-not [string]::IsNullOrWhiteSpace($SourceServerIP) -and -not [string]::IsNullOrWhiteSpace($SourceShareName))
+    {
+        if ([string]::IsNullOrWhiteSpace($Source) -or $Source -eq "\" -or $Source -eq "/")
+        {
+            return "\\$SourceServerIP\$SourceShareName"
+        }
+        else
+        {
+            $cleanSub = $Source.TrimStart('\', '/').TrimEnd('\', '/')
+            return "\\$SourceServerIP\$SourceShareName\$cleanSub"
+        }
+    }
     else
     {
-        $cleanSub = $Source.TrimStart('\', '/').TrimEnd('\', '/')
-        return "\\$SourceServerIP\$SourceShareName\$cleanSub"
+        return $Source.TrimEnd('\', '/')
     }
 }
 
@@ -409,7 +417,8 @@ function Get-NormalizedFolderMappings
 function Connect-SourceShare
 {
     param(
-        [string]$SharePath = "\\$SourceServerIP\$SourceShareName"
+        [Parameter(Mandatory = $true)]
+        [string]$SharePath
     )
 
     try
@@ -597,7 +606,15 @@ function Invoke-Replication
 
     if ($rootShares.Count -eq 0)
     {
-        $rootShares += "\\$SourceServerIP\$SourceShareName"
+        if (-not [string]::IsNullOrWhiteSpace($SourceServerIP) -and -not [string]::IsNullOrWhiteSpace($SourceShareName))
+        {
+            $rootShares += "\\$SourceServerIP\$SourceShareName"
+        }
+        else
+        {
+            Write-Log "ERROR: No remote SMB shares could be detected from `$FolderMappings. Please verify your Source paths."
+            return
+        }
     }
 
     # Connect to SMB share(s)
@@ -652,10 +669,35 @@ function Invoke-Replication
 
 $ConfiguredMappings = @(Get-NormalizedFolderMappings)
 
+# Detect all unique root UNC shares from configured mappings
+$DetectedShares = @()
+foreach ($m in $ConfiguredMappings)
+{
+    $src = Resolve-SourcePath $m.Source
+    if ($src.StartsWith("\\"))
+    {
+        $parts = $src.TrimStart('\').Split('\')
+        if ($parts.Length -ge 2)
+        {
+            $root = "\\$($parts[0])\$($parts[1])"
+            if ($DetectedShares -notcontains $root)
+            {
+                $DetectedShares += $root
+            }
+        }
+    }
+}
+
 Write-Log "=================================================="
 Write-Log "Robocopy Multi-Folder Replication Started"
-Write-Log "Source Server       : $SourceServerIP"
-Write-Log "Source Share        : $SourceShareName"
+if ($DetectedShares.Count -gt 0)
+{
+    Write-Log "Source Share(s)     : $($DetectedShares -join ', ')"
+}
+elseif (-not [string]::IsNullOrWhiteSpace($SourceShareName))
+{
+    Write-Log "Source Share        : $SourceShareName"
+}
 Write-Log "Configured Folders  : $($ConfiguredMappings.Count)"
 foreach ($m in $ConfiguredMappings)
 {
