@@ -9,9 +9,9 @@
 
 ```mermaid
 graph TD
-    A[Launch-Configurator.bat] -->|Check UAC / Elevate| B[Configure-ReplicationUI.ps1]
+    A[Launch-AvgolCopyMaster.bat] -->|Check UAC / Elevate| B[Avgol-CopyMaster-UI.ps1]
     B -->|XAML Parsing| C[WPF GUI Presentation Layer]
-    C -->|Read / Pre-populate| D[copy-script-v3.ps1]
+    C -->|Read / Pre-populate| D[Avgol-CopyScript.ps1]
     C -->|User Interaction| E[In-Memory Config State]
     E -->|Template Interpolation| F[Code Generation Engine]
     F -->|AST Parser Validation| G[System.Management.Automation.Language.Parser]
@@ -33,10 +33,10 @@ graph TD
 
 | File | Language | Purpose | Runtime Context |
 | :--- | :--- | :--- | :--- |
-| **`Launch-Configurator.bat`** | Windows Batch | Bootstrap launcher; performs UAC detection and auto-elevation to Administrator. | Interactive user context |
-| **`Configure-ReplicationUI.ps1`** | PowerShell 5.1 / WPF | Standalone desktop GUI, event handlers, DataGrid state manager, template generator, and syntax validator. | Elevated Administrator (`powershell.exe`) |
-| **`copy-script-v3.ps1`** | PowerShell 5.1 | Standalone reference script and fallback template containing complete replication and lifecycle logic. | Manual CLI or scheduled task |
-| **`Install-RobocopyTask.ps1`** | PowerShell 5.1 | Headless CLI script installer for registering `copy-script-v3.ps1` in Task Scheduler without opening the GUI. | Elevated CLI |
+| **`Launch-AvgolCopyMaster.bat`** | Windows Batch | Bootstrap launcher; performs UAC detection and auto-elevation to Administrator. | Interactive user context |
+| **`Avgol-CopyMaster-UI.ps1`** | PowerShell 5.1 / WPF | Standalone desktop GUI, event handlers, DataGrid state manager, template generator, and syntax validator. | Elevated Administrator (`powershell.exe`) |
+| **`Avgol-CopyScript.ps1`** | PowerShell 5.1 | Standalone reference script and fallback template containing complete replication and lifecycle logic. | Manual CLI or scheduled task |
+| **`Install-AvgolTask.ps1`** | PowerShell 5.1 | Headless CLI script installer for registering `Avgol-CopyScript.ps1` in Task Scheduler without opening the GUI. | Elevated CLI |
 | **`README.md`** | Markdown | Comprehensive Operator & User Guide. | Documentation |
 | **`DEVELOPER.md`** | Markdown | Technical architecture, component specifications, and developer manual (this file). | Documentation |
 
@@ -46,7 +46,7 @@ graph TD
 
 ### 1. Presentation Layer (WPF via Native PowerShell)
 - **Framework**: Built on `System.Windows.PresentationFramework` and `System.Windows.Markup.XamlReader`.
-- **Zero Compilation**: The entire XAML UI is embedded directly as an XML string inside `Configure-ReplicationUI.ps1`. This ensures it runs instantly on any Windows workstation without Visual Studio, MSBuild, or .NET SDK installation.
+- **Zero Compilation**: The entire XAML UI is embedded directly as an XML string inside `Avgol-CopyMaster-UI.ps1`. This ensures it runs instantly on any Windows workstation without Visual Studio, MSBuild, or .NET SDK installation.
 - **Dynamic Control Binding**:
   ```powershell
   $reader = [System.Xml.XmlNodeReader]::new($xaml)
@@ -199,7 +199,7 @@ graph TD
 Run on any script in the repository:
 ```powershell
 $errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile("Configure-ReplicationUI.ps1", [ref]$null, [ref]$errors)
+[System.Management.Automation.Language.Parser]::ParseFile("Avgol-CopyMaster-UI.ps1", [ref]$null, [ref]$errors)
 if ($errors) { $errors | ForEach-Object { Write-Error $_ } } else { "Syntax Clean!" }
 ```
 
@@ -207,7 +207,7 @@ if ($errors) { $errors | ForEach-Object { Write-Error $_ } } else { "Syntax Clea
 Verify that the UI template engine produces clean code:
 ```powershell
 # In PowerShell:
-$content = Get-Content -Raw "Configure-ReplicationUI.ps1"
+$content = Get-Content -Raw "Avgol-CopyMaster-UI.ps1"
 # Test parsing
 [System.Management.Automation.Language.Parser]::ParseInput($content, [ref]$null, [ref]$errs)
 $errs.Count # Must be 0
@@ -221,7 +221,7 @@ To simulate replication, archiving, purging, and cleanup locally without an exte
    "data" | Set-Content "C:\temp\TestSim\Source\sample.csv"
    (Get-Item "C:\temp\TestSim\Source\sample.csv").LastWriteTime = (Get-Date).AddMonths(-2)
    ```
-2. Run `copy-script-v3.ps1` targeting these directories with `$EnableSourceDelete = $true` and `$EnableDestMonthlyArchive = $true`.
+2. Run `Avgol-CopyScript.ps1` targeting these directories with `$EnableSourceDelete = $true` and `$EnableDestMonthlyArchive = $true`.
 3. Verify that `sample.csv` moves to `C:\temp\TestSim\Dest\YYYY-MM\sample.csv` and deletes from `C:\temp\TestSim\Source\`.
 
 ---

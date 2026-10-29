@@ -21,7 +21,7 @@ echo ====================================================================
 echo Starting Avgol Copy Master GUI...
 echo ====================================================================
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Configure-ReplicationUI.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Avgol-CopyMaster-UI.ps1"
 
 if %errorLevel% neq 0 (
     echo.

@@ -26,7 +26,7 @@
 **Avgol Copy Master** provides automated, resilient, and verified file synchronization between remote machine controllers (SMB/CIFS shares) and local storage servers.
 
 - **100% Air-Gap Compatible**: Zero external runtime dependencies. Runs natively on Windows 10/11 and Windows Server 2016/2019/2022 using pure PowerShell 5.1 and Win32 utilities (`robocopy.exe`, `schtasks.exe`, `net.exe`).
-- **Modern WPF Desktop GUI**: 1-click launcher (`Launch-Configurator.bat`) with automatic Administrator UAC elevation, high-contrast dark theme, and real-time console auditing.
+- **Modern WPF Desktop GUI**: 1-click launcher (`Launch-AvgolCopyMaster.bat`) with automatic Administrator UAC elevation, high-contrast dark theme, and real-time console auditing.
 - **Resilient Robocopy Core**: Uses industrial Robocopy flags (`/E`, `/Z` restartable mode, `/FFT` 2-second timestamp tolerance, `/XO` exclude older unchanged files, `/R:5 /W:15` automatic retry with wait, `/NP /TEE /LOG+`).
 - **Complete Data Lifecycle Management**:
   - **Verified Source Cleanup**: Safely deletes source files older than $X$ days **only after** verifying that the file exists at the local destination with an identical byte count.
@@ -71,7 +71,7 @@
 ## 🚀 Quick Start Guide
 
 ### Step 1: Launch the Configurator
-Right-click or double-click `Launch-Configurator.bat`.
+Right-click or double-click `Launch-AvgolCopyMaster.bat`.
 - The launcher automatically detects if administrative privileges are present. If not, Windows prompts for UAC elevation.
 - The **Avgol Copy Master** GUI window opens.
 
@@ -247,6 +247,6 @@ When deploying to an isolated industrial plant without internet access:
    - `powershell.exe` (Windows PowerShell 5.1 built into Windows 10/11/Server).
    - `robocopy.exe` (built into `C:\Windows\System32\`).
    - `schtasks.exe` (built into `C:\Windows\System32\`).
-3. **Launch**: Double-click `Launch-Configurator.bat`.
+3. **Launch**: Double-click `Launch-AvgolCopyMaster.bat`.
 4. **Configure & Deploy**: Set Source UNC paths, local destinations, credentials, and click **Deploy Script & Install Scheduled Task**.
 5. **Verify**: Open `C:\Scripts\Logs\Robocopy_Current.log` to confirm continuous replication cycles.

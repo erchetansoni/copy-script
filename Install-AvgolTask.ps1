@@ -27,16 +27,16 @@ CONFIGURATION
 # CONFIGURATION
 # ==================================================
 
-$TaskName = "Copy Script v3"
+$TaskName = "Avgol Copy Master"
 
-# Automatically detects copy-script-v3.ps1 in the current script folder
-$ScriptPath = "$PSScriptRoot\copy-script-v3.ps1"
+# Automatically detects Avgol-CopyScript.ps1 in the current script folder
+$ScriptPath = "$PSScriptRoot\Avgol-CopyScript.ps1"
 
 # Auto-resolve to absolute path if run interactively in console
 if (-not $PSScriptRoot -or -not [System.IO.Path]::IsPathRooted($ScriptPath))
 {
     $baseDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $ScriptPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($baseDir, "copy-script-v3.ps1"))
+    $ScriptPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($baseDir, "Avgol-CopyScript.ps1"))
 }
 
 $RunAsUser = "SYSTEM"

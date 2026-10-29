@@ -1743,13 +1743,20 @@ $btnRunNow.Add_Click({
 
 function Load-LocalScriptConfig
 {
-    $localScript = [System.IO.Path]::Combine($PSScriptRoot, "copy-script-v3.ps1")
-    if (-not $PSScriptRoot)
+    $candidateNames = @("Avgol-CopyScript.ps1", "copy-script-v3.ps1", "copy-script.ps1")
+    $localScript = $null
+    $baseDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+    foreach ($cand in $candidateNames)
     {
-        $localScript = (Resolve-Path ".\copy-script-v3.ps1" -ErrorAction SilentlyContinue).Path
+        $testP = [System.IO.Path]::Combine($baseDir, $cand)
+        if (Test-Path -LiteralPath $testP -ErrorAction SilentlyContinue)
+        {
+            $localScript = $testP
+            break
+        }
     }
 
-    if (-not (Test-Path -LiteralPath $localScript -ErrorAction SilentlyContinue))
+    if (-not $localScript -or -not (Test-Path -LiteralPath $localScript -ErrorAction SilentlyContinue))
     {
         Write-ConsoleLog "Local template script not found. Starting with default settings." "INFO"
         return
