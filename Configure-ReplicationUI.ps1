@@ -284,10 +284,89 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                     </StackPanel>
                 </Border>
 
-                <!-- Card 3: Deployment & Task Scheduler -->
+                <!-- Card 3: Data Lifecycle & Archive Policies -->
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <TextBlock Text="3. SCRIPT DEPLOYMENT AND TASK SCHEDULER SETTINGS" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="3. DATA LIFECYCLE &amp; ARCHIVE POLICIES" Style="{StaticResource SectionHeader}"/>
+
+                        <!-- Source File Deletion Policy -->
+                        <Border Background="#1a1612" BorderBrush="#78350f" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,10">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="chkEnableSourceDelete" Content="Delete data at Source(s) after replication" Foreground="#f59e0b" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1" HorizontalAlignment="Right" Background="#451a03" CornerRadius="3" Padding="6,2">
+                                        <TextBlock Text="WARNING: DELETES REMOTE SOURCE DATA" Foreground="#f87171" FontSize="10" FontWeight="Bold"/>
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Text="When enabled, files at remote source locations older than the specified days (from last modified date) are safely deleted after destination copy verification."
+                                           Foreground="#9ca3af" FontSize="11" Margin="22,4,0,8" TextWrapping="Wrap"/>
+
+                                <Grid x:Name="pnlSourceDeleteOptions" Margin="22,0,0,0" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Delete source files older than:" Foreground="#e5e7eb" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="txtSourceDeleteDays" Grid.Column="2" Height="28" Text="30" HorizontalContentAlignment="Center"/>
+                                    <TextBlock Grid.Column="4" Text="Days (from last modified date of the source file)" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Destination Monthly Archive & Purge Policy -->
+                        <Border Background="#121824" BorderBrush="#1e3a5f" BorderThickness="1" CornerRadius="4" Padding="12">
+                            <StackPanel>
+                                <CheckBox x:Name="chkEnableDestArchive" Content="Auto-Archive at Destination (Monthly YYYY-MM structure)" Foreground="#60a5fa" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="Automatically organizes files generated/modified in previous months into year-month folders (e.g. '2026-09') under each destination folder."
+                                           Foreground="#9ca3af" FontSize="11" Margin="22,4,0,8" TextWrapping="Wrap"/>
+
+                                <StackPanel x:Name="pnlDestArchiveOptions" Margin="22,0,0,0" Visibility="Collapsed">
+                                    <Separator Background="#212f45" Margin="0,4,0,10"/>
+
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox x:Name="chkEnableDestDelete" Content="Delete old monthly archive folders at Destination" Foreground="#fbbf24" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" HorizontalAlignment="Right" Background="#381e09" CornerRadius="3" Padding="6,2">
+                                            <TextBlock Text="AUTO-PURGE DESTINATION ARCHIVES" Foreground="#f59e0b" FontSize="10" FontWeight="Bold"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <TextBlock Text="Permanently deletes historical monthly archive folders and their data once they exceed the configured age in months."
+                                               Foreground="#9ca3af" FontSize="11" Margin="22,0,0,8" TextWrapping="Wrap"/>
+
+                                    <Grid x:Name="pnlDestDeleteOptions" Margin="22,0,0,0" Visibility="Collapsed">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Delete archive folders older than:" Foreground="#e5e7eb" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="txtDestDeleteMonths" Grid.Column="2" Height="28" Text="6" HorizontalContentAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="Months (from current month)" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 4: Deployment & Task Scheduler -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="4. SCRIPT DEPLOYMENT AND TASK SCHEDULER SETTINGS" Style="{StaticResource SectionHeader}"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
@@ -426,7 +505,9 @@ $namedElements = @(
     "btnLoadConfig", "txtUsername", "chkShowPassword", "txtPassword", "txtPasswordPlain",
     "btnTestSmb", "lblMappingCount", "dgMappings", "btnRemoveSelected", "btnClearAll",
     "txtMapName", "txtMapSource", "txtMapDest", "btnBrowseDest", "txtMapTypes",
-    "btnAddMapping", "txtDeployFolder", "btnBrowseDeploy", "txtScriptFileName",
+    "btnAddMapping", "chkEnableSourceDelete", "pnlSourceDeleteOptions", "txtSourceDeleteDays",
+    "chkEnableDestArchive", "pnlDestArchiveOptions", "chkEnableDestDelete", "pnlDestDeleteOptions", "txtDestDeleteMonths",
+    "txtDeployFolder", "btnBrowseDeploy", "txtScriptFileName",
     "txtTaskName", "txtRepeatMinutes", "txtLogFolder", "btnBrowseLog",
     "txtRunAsUser", "txtMaxLogMB", "txtRetentionDays", "btnSaveScriptOnly",
     "btnRunNow", "btnDeployAndCreateTask", "txtConsole"
@@ -529,6 +610,105 @@ $btnBrowseDeploy.Add_Click({
 $btnBrowseLog.Add_Click({
     $selected = Show-FolderBrowser $txtLogFolder.Text
     if ($selected) { $txtLogFolder.Text = $selected }
+})
+
+# ====================================================================
+# DATA LIFECYCLE & RETENTION EVENT HANDLERS
+# ====================================================================
+
+$script:isLoadingConfig = $false
+
+$chkEnableSourceDelete.Add_Checked({
+    if ($script:isLoadingConfig)
+    {
+        $pnlSourceDeleteOptions.Visibility = [System.Windows.Visibility]::Visible
+        return
+    }
+
+    $confirm = [System.Windows.MessageBox]::Show(
+        "CRITICAL WARNING: REMOTE SOURCE DATA DELETION!`n`n" +
+        "You are about to enable automatic deletion of source files after replication.`n`n" +
+        "Files at the remote source location(s) that are older than the configured threshold (from their last modified date) will be PERMANENTLY DELETED.`n`n" +
+        "Safety Guarantee: A file will ONLY be deleted from the source after it has been verified to exist at the destination with matching size.`n`n" +
+        "Are you sure you want to enable Source Data Deletion?",
+        "Avgol Copy Master - Confirm Source Data Deletion",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    if ($confirm -eq [System.Windows.MessageBoxResult]::Yes)
+    {
+        $pnlSourceDeleteOptions.Visibility = [System.Windows.Visibility]::Visible
+        Write-ConsoleLog "WARNING: Source Data Deletion policy has been turned ON." "WARN"
+    }
+    else
+    {
+        $chkEnableSourceDelete.IsChecked = $false
+        $pnlSourceDeleteOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+})
+
+$chkEnableSourceDelete.Add_Unchecked({
+    $pnlSourceDeleteOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    if (-not $script:isLoadingConfig)
+    {
+        Write-ConsoleLog "Source Data Deletion policy turned OFF." "INFO"
+    }
+})
+
+$chkEnableDestArchive.Add_Checked({
+    $pnlDestArchiveOptions.Visibility = [System.Windows.Visibility]::Visible
+    if (-not $script:isLoadingConfig)
+    {
+        Write-ConsoleLog "Destination Monthly Auto-Archive (YYYY-MM) turned ON." "INFO"
+    }
+})
+
+$chkEnableDestArchive.Add_Unchecked({
+    $pnlDestArchiveOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    $chkEnableDestDelete.IsChecked = $false
+    $pnlDestDeleteOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    if (-not $script:isLoadingConfig)
+    {
+        Write-ConsoleLog "Destination Monthly Auto-Archive turned OFF." "INFO"
+    }
+})
+
+$chkEnableDestDelete.Add_Checked({
+    if ($script:isLoadingConfig)
+    {
+        $pnlDestDeleteOptions.Visibility = [System.Windows.Visibility]::Visible
+        return
+    }
+
+    $confirm = [System.Windows.MessageBox]::Show(
+        "WARNING: DESTINATION ARCHIVE PURGE!`n`n" +
+        "You are about to enable automatic deletion of historical archive folders at the destination.`n`n" +
+        "Old monthly archive folders (e.g. '2025-08') and all files inside them older than the configured month threshold will be PERMANENTLY PURGED.`n`n" +
+        "Are you sure you want to enable automatic deletion of old monthly destination archives?",
+        "Avgol Copy Master - Confirm Destination Archive Purge",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    if ($confirm -eq [System.Windows.MessageBoxResult]::Yes)
+    {
+        $pnlDestDeleteOptions.Visibility = [System.Windows.Visibility]::Visible
+        Write-ConsoleLog "WARNING: Destination Archive Purge policy has been turned ON." "WARN"
+    }
+    else
+    {
+        $chkEnableDestDelete.IsChecked = $false
+        $pnlDestDeleteOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+})
+
+$chkEnableDestDelete.Add_Unchecked({
+    $pnlDestDeleteOptions.Visibility = [System.Windows.Visibility]::Collapsed
+    if (-not $script:isLoadingConfig)
+    {
+        Write-ConsoleLog "Destination Archive Purge policy turned OFF." "INFO"
+    }
 })
 
 # ====================================================================
@@ -691,6 +871,15 @@ function Generate-RobocopyScriptContent
     $retention    = [int]($txtRetentionDays.Text.Trim())
     $pollingSec   = [int]($txtRepeatMinutes.Text.Trim()) * 60
 
+    $enableSrcDel   = if ($chkEnableSourceDelete.IsChecked) { '$true' } else { '$false' }
+    $srcDelDays     = [int]($txtSourceDeleteDays.Text.Trim())
+    if ($srcDelDays -lt 1) { $srcDelDays = 1 }
+
+    $enableDestArch = if ($chkEnableDestArchive.IsChecked) { '$true' } else { '$false' }
+    $enableDestDel  = if ($chkEnableDestDelete.IsChecked) { '$true' } else { '$false' }
+    $destDelMonths  = [int]($txtDestDeleteMonths.Text.Trim())
+    if ($destDelMonths -lt 1) { $destDelMonths = 1 }
+
     # Build Mappings Code
     $mappingsBuilder = [System.Text.StringBuilder]::new()
     $mappingsBuilder.AppendLine('$FolderMappings = @(') | Out-Null
@@ -749,6 +938,21 @@ $FileTypes           = @("*.*")
 $PollingIntervalSec  = __POLLING_SEC__
 $RetryAttempts       = 5
 $RetryWaitSeconds    = 15
+
+# ====================================================================
+# DATA LIFECYCLE & RETENTION POLICIES
+# ====================================================================
+
+# 1. Source Data Deletion (Delete old files from Source)
+$EnableSourceDelete         = __ENABLE_SOURCE_DELETE__
+$SourceDeleteDays           = __SOURCE_DELETE_DAYS__
+
+# 2. Destination Monthly Auto-Archive (YYYY-MM structure)
+$EnableDestMonthlyArchive   = __ENABLE_DEST_ARCHIVE__
+
+# 3. Destination Archive Purge (Delete old YYYY-MM folders)
+$EnableDestArchiveDelete    = __ENABLE_DEST_DELETE__
+$DestArchiveDeleteMonths    = __DEST_DELETE_MONTHS__
 
 # ====================================================================
 # LOG SETTINGS
@@ -973,8 +1177,39 @@ function Start-RobocopyCopy
             "/W:$RetryWaitSeconds",
             "/NP",
             "/TEE",
-            "/LOG+:`"$DetailedLog`""
+            "/LOG+:`"$DetailedLog`"",
+            "/XD",
+            "20*"
         )
+
+        # Exclude source files from re-copying if already archived into monthly subfolders
+        if ($EnableDestMonthlyArchive)
+        {
+            $now = Get-Date
+            $curMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+            $srcFiles = Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction SilentlyContinue
+            $xfList = @()
+            foreach ($sf in $srcFiles)
+            {
+                if ($sf.LastWriteTime -lt $curMonthStart)
+                {
+                    $ym = $sf.LastWriteTime.ToString("yyyy-MM")
+                    $archPath = [System.IO.Path]::Combine($DestPath, $ym, $sf.Name)
+                    if (Test-Path -LiteralPath $archPath)
+                    {
+                        $xfList += $sf.Name
+                    }
+                }
+            }
+            if ($xfList.Count -gt 0)
+            {
+                $Arguments += "/XF"
+                foreach ($xf in $xfList)
+                {
+                    $Arguments += $xf
+                }
+            }
+        }
 
         $Process = Start-Process -FilePath "robocopy.exe" -ArgumentList $Arguments -Wait -NoNewWindow -PassThru
         $ExitCode = $Process.ExitCode
@@ -1007,6 +1242,226 @@ function Start-RobocopyCopy
     {
         Write-Log "[$($Mapping.Name)] Robocopy Exception: $_"
         return $false
+    }
+}
+
+# ====================================================================
+# DESTINATION MONTHLY AUTO-ARCHIVE
+# ====================================================================
+
+function Invoke-DestinationMonthlyArchive
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableDestMonthlyArchive)
+    {
+        return
+    }
+
+    try
+    {
+        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            return
+        }
+
+        # Any file modified prior to the 1st of current month belongs to previous month
+        $now = Get-Date
+        $currentMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+
+        $destFiles = Get-ChildItem -LiteralPath $DestPath -File -ErrorAction SilentlyContinue
+        $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
+
+        $archivedCount = 0
+
+        foreach ($df in $destFiles)
+        {
+            $matchesType = $false
+            foreach ($pattern in $activeTypes)
+            {
+                if ($df.Name -like $pattern) { $matchesType = $true; break }
+            }
+            if (-not $matchesType) { continue }
+
+            if ($df.LastWriteTime -lt $currentMonthStart)
+            {
+                $ym = $df.LastWriteTime.ToString("yyyy-MM")
+                $targetDir = [System.IO.Path]::Combine($DestPath, $ym)
+
+                if (!(Test-Path -LiteralPath $targetDir))
+                {
+                    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+                    Write-Log "[$($Mapping.Name)] Created monthly archive folder: $ym"
+                }
+
+                $targetFilePath = [System.IO.Path]::Combine($targetDir, $df.Name)
+                Move-Item -LiteralPath $df.FullName -Destination $targetFilePath -Force
+                Write-Log "[$($Mapping.Name)] [DEST ARCHIVE] Moved '$($df.Name)' (Modified: $($df.LastWriteTime.ToString('yyyy-MM-dd'))) -> '$ym\'"
+                $archivedCount++
+            }
+        }
+
+        if ($archivedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Monthly Archive: $archivedCount file(s) moved to YYYY-MM archive folders."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Destination Monthly Archive Error: $_"
+    }
+}
+
+# ====================================================================
+# DESTINATION ARCHIVE PURGE (DELETE OLD MONTHLY FOLDERS)
+# ====================================================================
+
+function Invoke-DestinationArchivePurge
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableDestArchiveDelete -or $DestArchiveDeleteMonths -lt 1)
+    {
+        return
+    }
+
+    try
+    {
+        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            return
+        }
+
+        $now = Get-Date
+        $currentMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+        $cutoffMonth = $currentMonthStart.AddMonths(-$DestArchiveDeleteMonths)
+
+        $monthFolders = Get-ChildItem -LiteralPath $DestPath -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d{4}-(0[1-9]|1[0-2])$' }
+
+        $purgedCount = 0
+
+        foreach ($mf in $monthFolders)
+        {
+            try
+            {
+                $folderDate = [DateTime]::ParseExact($mf.Name, "yyyy-MM", [System.Globalization.CultureInfo]::InvariantCulture)
+                if ($folderDate -lt $cutoffMonth)
+                {
+                    Write-Log "[$($Mapping.Name)] [DEST PURGE] Permanently deleting expired archive folder: $($mf.Name) (Cutoff: $($cutoffMonth.ToString('yyyy-MM')))"
+                    Remove-Item -LiteralPath $mf.FullName -Recurse -Force -ErrorAction Stop
+                    $purgedCount++
+                }
+            }
+            catch
+            {
+                Write-Log "[$($Mapping.Name)] [DEST PURGE ERROR] Failed removing $($mf.Name): $_"
+            }
+        }
+
+        if ($purgedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Destination Purge: $purgedCount old monthly archive folder(s) removed."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Destination Archive Purge Error: $_"
+    }
+}
+
+# ====================================================================
+# REMOTE SOURCE CLEANUP (DELETE OLD SOURCE FILES)
+# ====================================================================
+
+function Invoke-SourceCleanup
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableSourceDelete -or $SourceDeleteDays -lt 1)
+    {
+        return
+    }
+
+    try
+    {
+        $SourcePath = $Mapping.Source.Trim().TrimEnd('\', '/')
+        $DestPath   = $Mapping.Destination.Trim().TrimEnd('\', '/')
+
+        if (!(Test-Path -LiteralPath $SourcePath))
+        {
+            return
+        }
+
+        $cutoff = (Get-Date).AddDays(-$SourceDeleteDays)
+        $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
+
+        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] Checking for source files older than $SourceDeleteDays days (Cutoff: $($cutoff.ToString('yyyy-MM-dd HH:mm')))..."
+
+        $sourceFiles = Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction SilentlyContinue
+
+        $deletedCount = 0
+        $skippedCount = 0
+
+        foreach ($sf in $sourceFiles)
+        {
+            $matchesType = $false
+            foreach ($pattern in $activeTypes)
+            {
+                if ($sf.Name -like $pattern) { $matchesType = $true; break }
+            }
+            if (-not $matchesType) { continue }
+
+            if ($sf.LastWriteTime -lt $cutoff)
+            {
+                # Verification: verify file exists at destination (root or monthly archive) with matching size
+                $destRootFile = [System.IO.Path]::Combine($DestPath, $sf.Name)
+                $ym = $sf.LastWriteTime.ToString("yyyy-MM")
+                $destArchFile = [System.IO.Path]::Combine($DestPath, $ym, $sf.Name)
+
+                $verified = $false
+                if (Test-Path -LiteralPath $destRootFile)
+                {
+                    $df = Get-Item -LiteralPath $destRootFile -ErrorAction SilentlyContinue
+                    if ($df -and $df.Length -eq $sf.Length) { $verified = $true }
+                }
+                elseif (Test-Path -LiteralPath $destArchFile)
+                {
+                    $af = Get-Item -LiteralPath $destArchFile -ErrorAction SilentlyContinue
+                    if ($af -and $af.Length -eq $sf.Length) { $verified = $true }
+                }
+
+                if ($verified)
+                {
+                    try
+                    {
+                        Remove-Item -LiteralPath $sf.FullName -Force -ErrorAction Stop
+                        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] Deleted verified source file: $($sf.Name) (Modified: $($sf.LastWriteTime.ToString('yyyy-MM-dd')))"
+                        $deletedCount++
+                    }
+                    catch
+                    {
+                        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP ERROR] Failed to delete $($sf.Name): $_"
+                    }
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] SKIPPED: $($sf.Name) is older than $SourceDeleteDays days but is NOT yet verified at destination."
+                    $skippedCount++
+                }
+            }
+        }
+
+        if ($deletedCount -gt 0 -or $skippedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Source Cleanup: $deletedCount deleted, $skippedCount unverified."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Source Cleanup Error: $_"
     }
 }
 
@@ -1067,6 +1522,28 @@ function Invoke-Replication
         $psobj = [PSCustomObject]$mapping
         $success = Start-RobocopyCopy -Mapping $psobj
         if ($success) { $successCount++ } else { $failureCount++ }
+
+        # Post-Copy Lifecycle Actions:
+        if ($success -or (Test-Path -LiteralPath $psobj.Destination))
+        {
+            # 1. Destination Monthly Auto-Archive (YYYY-MM structure)
+            if ($EnableDestMonthlyArchive)
+            {
+                Invoke-DestinationMonthlyArchive -Mapping $psobj
+            }
+
+            # 2. Destination Archive Purge (Delete old YYYY-MM folders)
+            if ($EnableDestArchiveDelete)
+            {
+                Invoke-DestinationArchivePurge -Mapping $psobj
+            }
+
+            # 3. Source File Cleanup (Delete verified source files older than X days)
+            if ($EnableSourceDelete)
+            {
+                Invoke-SourceCleanup -Mapping $psobj
+            }
+        }
     }
 
     Write-Log "Replication Cycle Finished: $successCount succeeded, $failureCount failed, $skippedCount skipped."
@@ -1097,6 +1574,11 @@ catch
     $rendered = $rendered.Replace("__MAX_LOG_MB__", "$maxLogMB")
     $rendered = $rendered.Replace("__RETENTION_DAYS__", "$retention")
     $rendered = $rendered.Replace("__POLLING_SEC__", "$pollingSec")
+    $rendered = $rendered.Replace("__ENABLE_SOURCE_DELETE__", $enableSrcDel)
+    $rendered = $rendered.Replace("__SOURCE_DELETE_DAYS__", "$srcDelDays")
+    $rendered = $rendered.Replace("__ENABLE_DEST_ARCHIVE__", $enableDestArch)
+    $rendered = $rendered.Replace("__ENABLE_DEST_DELETE__", $enableDestDel)
+    $rendered = $rendered.Replace("__DEST_DELETE_MONTHS__", "$destDelMonths")
 
     return $rendered
 }
@@ -1291,6 +1773,31 @@ function Load-LocalScriptConfig
         if ($raw -match '\$LogFolder\s*=\s*"([^"]+)"')
         {
             $txtLogFolder.Text = $matches[1]
+        }
+
+        # Lifecycle Policies
+        if ($raw -match '\$EnableSourceDelete\s*=\s*\$(true|false)')
+        {
+            $chkEnableSourceDelete.IsChecked = ($matches[1] -eq 'true')
+            $pnlSourceDeleteOptions.Visibility = if ($chkEnableSourceDelete.IsChecked) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        }
+        if ($raw -match '\$SourceDeleteDays\s*=\s*(\d+)')
+        {
+            $txtSourceDeleteDays.Text = $matches[1]
+        }
+        if ($raw -match '\$EnableDestMonthlyArchive\s*=\s*\$(true|false)')
+        {
+            $chkEnableDestArchive.IsChecked = ($matches[1] -eq 'true')
+            $pnlDestArchiveOptions.Visibility = if ($chkEnableDestArchive.IsChecked) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        }
+        if ($raw -match '\$EnableDestArchiveDelete\s*=\s*\$(true|false)')
+        {
+            $chkEnableDestDelete.IsChecked = ($matches[1] -eq 'true')
+            $pnlDestDeleteOptions.Visibility = if ($chkEnableDestDelete.IsChecked) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        }
+        if ($raw -match '\$DestArchiveDeleteMonths\s*=\s*(\d+)')
+        {
+            $txtDestDeleteMonths.Text = $matches[1]
         }
 
         # Parse Folder Mappings block in an isolated runspace

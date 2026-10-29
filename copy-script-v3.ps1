@@ -132,6 +132,21 @@ $MaxArchivedLogs     = 20
 $LogRetentionDays    = 30
 
 # ====================================================================
+# DATA LIFECYCLE & RETENTION POLICIES
+# ====================================================================
+
+# 1. Source Data Deletion (Delete old files from Source)
+$EnableSourceDelete         = $false
+$SourceDeleteDays           = 30
+
+# 2. Destination Monthly Auto-Archive (YYYY-MM structure)
+$EnableDestMonthlyArchive   = $false
+
+# 3. Destination Archive Purge (Delete old YYYY-MM folders)
+$EnableDestArchiveDelete    = $false
+$DestArchiveDeleteMonths    = 6
+
+# ====================================================================
 # END CONFIGURATION
 # ====================================================================
 
@@ -523,8 +538,39 @@ function Start-RobocopyCopy
             "/W:$RetryWaitSeconds",
             "/NP",
             "/TEE",
-            "/LOG+:`"$DetailedLog`""
+            "/LOG+:`"$DetailedLog`"",
+            "/XD",
+            "20*"
         )
+
+        # Exclude source files from re-copying if already archived into monthly subfolders
+        if ($EnableDestMonthlyArchive)
+        {
+            $now = Get-Date
+            $curMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+            $srcFiles = Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction SilentlyContinue
+            $xfList = @()
+            foreach ($sf in $srcFiles)
+            {
+                if ($sf.LastWriteTime -lt $curMonthStart)
+                {
+                    $ym = $sf.LastWriteTime.ToString("yyyy-MM")
+                    $archPath = [System.IO.Path]::Combine($DestPath, $ym, $sf.Name)
+                    if (Test-Path -LiteralPath $archPath)
+                    {
+                        $xfList += $sf.Name
+                    }
+                }
+            }
+            if ($xfList.Count -gt 0)
+            {
+                $Arguments += "/XF"
+                foreach ($xf in $xfList)
+                {
+                    $Arguments += $xf
+                }
+            }
+        }
 
         $Process = Start-Process `
             -FilePath "robocopy.exe" `
@@ -563,6 +609,226 @@ function Start-RobocopyCopy
     {
         Write-Log "[$($Mapping.Name)] Robocopy Exception: $_"
         return $false
+    }
+}
+
+# ====================================================================
+# DESTINATION MONTHLY AUTO-ARCHIVE
+# ====================================================================
+
+function Invoke-DestinationMonthlyArchive
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableDestMonthlyArchive)
+    {
+        return
+    }
+
+    try
+    {
+        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            return
+        }
+
+        # Any file modified prior to the 1st of current month belongs to previous month
+        $now = Get-Date
+        $currentMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+
+        $destFiles = Get-ChildItem -LiteralPath $DestPath -File -ErrorAction SilentlyContinue
+        $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
+
+        $archivedCount = 0
+
+        foreach ($df in $destFiles)
+        {
+            $matchesType = $false
+            foreach ($pattern in $activeTypes)
+            {
+                if ($df.Name -like $pattern) { $matchesType = $true; break }
+            }
+            if (-not $matchesType) { continue }
+
+            if ($df.LastWriteTime -lt $currentMonthStart)
+            {
+                $ym = $df.LastWriteTime.ToString("yyyy-MM")
+                $targetDir = [System.IO.Path]::Combine($DestPath, $ym)
+
+                if (!(Test-Path -LiteralPath $targetDir))
+                {
+                    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+                    Write-Log "[$($Mapping.Name)] Created monthly archive folder: $ym"
+                }
+
+                $targetFilePath = [System.IO.Path]::Combine($targetDir, $df.Name)
+                Move-Item -LiteralPath $df.FullName -Destination $targetFilePath -Force
+                Write-Log "[$($Mapping.Name)] [DEST ARCHIVE] Moved '$($df.Name)' (Modified: $($df.LastWriteTime.ToString('yyyy-MM-dd'))) -> '$ym\'"
+                $archivedCount++
+            }
+        }
+
+        if ($archivedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Monthly Archive: $archivedCount file(s) moved to YYYY-MM archive folders."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Destination Monthly Archive Error: $_"
+    }
+}
+
+# ====================================================================
+# DESTINATION ARCHIVE PURGE (DELETE OLD MONTHLY FOLDERS)
+# ====================================================================
+
+function Invoke-DestinationArchivePurge
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableDestArchiveDelete -or $DestArchiveDeleteMonths -lt 1)
+    {
+        return
+    }
+
+    try
+    {
+        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            return
+        }
+
+        $now = Get-Date
+        $currentMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
+        $cutoffMonth = $currentMonthStart.AddMonths(-$DestArchiveDeleteMonths)
+
+        $monthFolders = Get-ChildItem -LiteralPath $DestPath -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d{4}-(0[1-9]|1[0-2])$' }
+
+        $purgedCount = 0
+
+        foreach ($mf in $monthFolders)
+        {
+            try
+            {
+                $folderDate = [DateTime]::ParseExact($mf.Name, "yyyy-MM", [System.Globalization.CultureInfo]::InvariantCulture)
+                if ($folderDate -lt $cutoffMonth)
+                {
+                    Write-Log "[$($Mapping.Name)] [DEST PURGE] Permanently deleting expired archive folder: $($mf.Name) (Cutoff: $($cutoffMonth.ToString('yyyy-MM')))"
+                    Remove-Item -LiteralPath $mf.FullName -Recurse -Force -ErrorAction Stop
+                    $purgedCount++
+                }
+            }
+            catch
+            {
+                Write-Log "[$($Mapping.Name)] [DEST PURGE ERROR] Failed removing $($mf.Name): $_"
+            }
+        }
+
+        if ($purgedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Destination Purge: $purgedCount old monthly archive folder(s) removed."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Destination Archive Purge Error: $_"
+    }
+}
+
+# ====================================================================
+# REMOTE SOURCE CLEANUP (DELETE OLD SOURCE FILES)
+# ====================================================================
+
+function Invoke-SourceCleanup
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if (-not $EnableSourceDelete -or $SourceDeleteDays -lt 1)
+    {
+        return
+    }
+
+    try
+    {
+        $SourcePath = Resolve-SourcePath $Mapping.Source
+        $DestPath   = $Mapping.Destination.Trim().TrimEnd('\', '/')
+
+        if (!(Test-Path -LiteralPath $SourcePath))
+        {
+            return
+        }
+
+        $cutoff = (Get-Date).AddDays(-$SourceDeleteDays)
+        $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
+
+        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] Checking for source files older than $SourceDeleteDays days (Cutoff: $($cutoff.ToString('yyyy-MM-dd HH:mm')))..."
+
+        $sourceFiles = Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction SilentlyContinue
+
+        $deletedCount = 0
+        $skippedCount = 0
+
+        foreach ($sf in $sourceFiles)
+        {
+            $matchesType = $false
+            foreach ($pattern in $activeTypes)
+            {
+                if ($sf.Name -like $pattern) { $matchesType = $true; break }
+            }
+            if (-not $matchesType) { continue }
+
+            if ($sf.LastWriteTime -lt $cutoff)
+            {
+                # Verification: verify file exists at destination (root or monthly archive) with matching size
+                $destRootFile = [System.IO.Path]::Combine($DestPath, $sf.Name)
+                $ym = $sf.LastWriteTime.ToString("yyyy-MM")
+                $destArchFile = [System.IO.Path]::Combine($DestPath, $ym, $sf.Name)
+
+                $verified = $false
+                if (Test-Path -LiteralPath $destRootFile)
+                {
+                    $df = Get-Item -LiteralPath $destRootFile -ErrorAction SilentlyContinue
+                    if ($df -and $df.Length -eq $sf.Length) { $verified = $true }
+                }
+                elseif (Test-Path -LiteralPath $destArchFile)
+                {
+                    $af = Get-Item -LiteralPath $destArchFile -ErrorAction SilentlyContinue
+                    if ($af -and $af.Length -eq $sf.Length) { $verified = $true }
+                }
+
+                if ($verified)
+                {
+                    try
+                    {
+                        Remove-Item -LiteralPath $sf.FullName -Force -ErrorAction Stop
+                        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] Deleted verified source file: $($sf.Name) (Modified: $($sf.LastWriteTime.ToString('yyyy-MM-dd')))"
+                        $deletedCount++
+                    }
+                    catch
+                    {
+                        Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP ERROR] Failed to delete $($sf.Name): $_"
+                    }
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] [SOURCE CLEANUP] SKIPPED: $($sf.Name) is older than $SourceDeleteDays days but is NOT yet verified at destination."
+                    $skippedCount++
+                }
+            }
+        }
+
+        if ($deletedCount -gt 0 -or $skippedCount -gt 0)
+        {
+            Write-Log "[$($Mapping.Name)] Source Cleanup: $deletedCount deleted, $skippedCount unverified."
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] Source Cleanup Error: $_"
     }
 }
 
@@ -655,6 +921,29 @@ function Invoke-Replication
         else
         {
             $failureCount++
+        }
+
+        # Post-Copy Lifecycle Actions:
+        $destDir = $mapping.Destination.Trim().TrimEnd('\', '/')
+        if ($success -or (Test-Path -LiteralPath $destDir))
+        {
+            # 1. Destination Monthly Auto-Archive (YYYY-MM structure)
+            if ($EnableDestMonthlyArchive)
+            {
+                Invoke-DestinationMonthlyArchive -Mapping $mapping
+            }
+
+            # 2. Destination Archive Purge (Delete old YYYY-MM folders)
+            if ($EnableDestArchiveDelete)
+            {
+                Invoke-DestinationArchivePurge -Mapping $mapping
+            }
+
+            # 3. Source File Cleanup (Delete verified source files older than X days)
+            if ($EnableSourceDelete)
+            {
+                Invoke-SourceCleanup -Mapping $mapping
+            }
         }
     }
 
