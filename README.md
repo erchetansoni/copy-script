@@ -17,7 +17,8 @@
 5. [Viewing & Managing in Windows Task Scheduler](#-viewing--managing-in-windows-task-scheduler)
 6. [Logs, Auditing & Rotation](#-logs-auditing--rotation)
 7. [Comprehensive Troubleshooting & Diagnostics Guide](#-comprehensive-troubleshooting--diagnostics-guide)
-8. [Air-Gapped Deployment Checklist](#-air-gapped-deployment-checklist)
+8. [Automated End-to-End Testing (E2E)](#-automated-end-to-end-testing-e2e)
+9. [Air-Gapped Deployment Checklist](#-air-gapped-deployment-checklist)
 
 ---
 
@@ -238,6 +239,44 @@ Robocopy uses bitmap exit codes where values $\le 7$ are non-fatal successes:
 
 ---
 
+---
+
+## 🧪 Automated End-to-End Testing (E2E)
+
+Avgol Copy Master includes a native, 21-point automated test suite [`Test-AvgolCopyMaster-E2E.ps1`](file:///c:/Projects/Companies/Avgol/Copy-Script/Test-AvgolCopyMaster-E2E.ps1) for validating complete system health without requiring manual configuration.
+
+### How to Run
+
+#### Option A: Offline Local Sandbox Mode (Recommended for Air-Gapped Machines)
+Requires no network shares, domain controllers, or internet connection:
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1
+```
+
+#### Option B: Live SMB Remote Share Testing
+Validates against an active network UNC share with credentials:
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1 `
+    -RemoteUNC "\\10.91.13.204\qw\E2E_Test" `
+    -Username "10.91.13.204\admin" `
+    -Password "Avgol2002"
+```
+
+### What is Verified Automatically:
+1. **AST Parser Syntax Check**: Verifies that both the UI generator and core replication script have 0 syntax errors.
+2. **Automated Fixture Generation**: Creates test files with timestamps simulating today, last month, and >30 days ago, plus expired and retained archive folders.
+3. **Template Extraction & Code Generation**: Dynamically compiles the replication script and verifies AST integrity.
+4. **Pass 1 Execution**: Tests Robocopy synchronization, destination monthly archiving (`YYYY-MM`), archive purging, and verified source file cleanup.
+5. **Post-Replication Assertions**: Confirms that:
+   - Current month data stays at destination root.
+   - Previous month data moves to `YYYY-MM`.
+   - Expired archive folders are permanently pruned.
+   - Source files are safely deleted only after byte-matching destination verification.
+6. **Pass 2 Loop Prevention Check**: Re-runs replication to verify that Robocopy `/XD 20*` and `/XF` exclusions prevent archived files from being re-copied back to root.
+7. **Log Rotation Audit**: Verifies that `Robocopy_Current.log` records both operational events and Robocopy synchronization summaries.
+
+---
+
 ## 🔒 Air-Gapped Deployment Checklist
 
 When deploying to an isolated industrial plant without internet access:
@@ -247,6 +286,7 @@ When deploying to an isolated industrial plant without internet access:
    - `powershell.exe` (Windows PowerShell 5.1 built into Windows 10/11/Server).
    - `robocopy.exe` (built into `C:\Windows\System32\`).
    - `schtasks.exe` (built into `C:\Windows\System32\`).
-3. **Launch**: Double-click `Launch-AvgolCopyMaster.bat`.
-4. **Configure & Deploy**: Set Source UNC paths, local destinations, credentials, and click **Deploy Script & Install Scheduled Task**.
-5. **Verify**: Open `C:\Scripts\Logs\Robocopy_Current.log` to confirm continuous replication cycles.
+3. **Run Self-Test**: Run `powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1` to confirm system functionality (21/21 passes).
+4. **Launch**: Double-click `Launch-AvgolCopyMaster.bat`.
+5. **Configure & Deploy**: Set Source UNC paths, local destinations, credentials, and click **Deploy Script & Install Scheduled Task**.
+6. **Verify**: Open `C:\Scripts\Logs\Robocopy_Current.log` to confirm continuous replication cycles.

@@ -1472,38 +1472,49 @@ function Invoke-SourceCleanup
 function Invoke-Replication
 {
     $rootShares = @()
+    $hasLocalSource = $false
     foreach ($m in $FolderMappings)
     {
-        if ($m.Enabled -and $m.Source -and $m.Source.StartsWith("\\"))
+        if ($m.Enabled -and $m.Source)
         {
-            $parts = $m.Source.TrimStart('\').Split('\')
-            if ($parts.Length -ge 2)
+            if ($m.Source.StartsWith("\\"))
             {
-                $root = "\\$($parts[0])\$($parts[1])"
-                if ($rootShares -notcontains $root) { $rootShares += $root }
+                $parts = $m.Source.TrimStart('\').Split('\')
+                if ($parts.Length -ge 2)
+                {
+                    $root = "\\$($parts[0])\$($parts[1])"
+                    if ($rootShares -notcontains $root) { $rootShares += $root }
+                }
+            }
+            else
+            {
+                $hasLocalSource = $true
             }
         }
     }
 
-    if ($rootShares.Count -eq 0)
+    if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
     {
-        Write-Log "ERROR: No remote SMB shares could be detected from `$FolderMappings."
+        Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings."
         return
     }
 
     $connectionFailures = 0
-    foreach ($share in $rootShares)
+    if ($rootShares.Count -gt 0)
     {
-        if (-not (Connect-SourceShare -SharePath $share))
+        foreach ($share in $rootShares)
         {
-            $connectionFailures++
+            if (-not (Connect-SourceShare -SharePath $share))
+            {
+                $connectionFailures++
+            }
         }
-    }
 
-    if ($connectionFailures -eq $rootShares.Count)
-    {
-        Write-Log "All source shares are unreachable. Skipping copy cycle."
-        return
+        if ($connectionFailures -eq $rootShares.Count)
+        {
+            Write-Log "All source shares are unreachable. Skipping copy cycle."
+            return
+        }
     }
 
     $successCount = 0

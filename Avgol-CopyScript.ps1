@@ -850,6 +850,7 @@ function Invoke-Replication
 
     # Identify all distinct root UNC shares that need connection
     $rootShares = @()
+    $hasLocalSource = $false
     foreach ($m in $Mappings)
     {
         if ($m.Enabled)
@@ -867,10 +868,14 @@ function Invoke-Replication
                     }
                 }
             }
+            else
+            {
+                $hasLocalSource = $true
+            }
         }
     }
 
-    if ($rootShares.Count -eq 0)
+    if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
     {
         if (-not [string]::IsNullOrWhiteSpace($SourceServerIP) -and -not [string]::IsNullOrWhiteSpace($SourceShareName))
         {
@@ -878,25 +883,28 @@ function Invoke-Replication
         }
         else
         {
-            Write-Log "ERROR: No remote SMB shares could be detected from `$FolderMappings. Please verify your Source paths."
+            Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings. Please verify your Source paths."
             return
         }
     }
 
-    # Connect to SMB share(s)
+    # Connect to SMB share(s) if any remote UNC paths exist
     $connectionFailures = 0
-    foreach ($share in $rootShares)
+    if ($rootShares.Count -gt 0)
     {
-        if (-not (Connect-SourceShare -SharePath $share))
+        foreach ($share in $rootShares)
         {
-            $connectionFailures++
+            if (-not (Connect-SourceShare -SharePath $share))
+            {
+                $connectionFailures++
+            }
         }
-    }
 
-    if ($connectionFailures -eq $rootShares.Count)
-    {
-        Write-Log "All source shares are unreachable. Skipping copy cycle."
-        return
+        if ($connectionFailures -eq $rootShares.Count)
+        {
+            Write-Log "All source shares are unreachable. Skipping copy cycle."
+            return
+        }
     }
 
     # Process each folder mapping

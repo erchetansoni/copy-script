@@ -37,6 +37,7 @@ graph TD
 | **`Avgol-CopyMaster-UI.ps1`** | PowerShell 5.1 / WPF | Standalone desktop GUI, event handlers, DataGrid state manager, template generator, and syntax validator. | Elevated Administrator (`powershell.exe`) |
 | **`Avgol-CopyScript.ps1`** | PowerShell 5.1 | Standalone reference script and fallback template containing complete replication and lifecycle logic. | Manual CLI or scheduled task |
 | **`Install-AvgolTask.ps1`** | PowerShell 5.1 | Headless CLI script installer for registering `Avgol-CopyScript.ps1` in Task Scheduler without opening the GUI. | Elevated CLI |
+| **`Test-AvgolCopyMaster-E2E.ps1`** | PowerShell 5.1 | Automated End-to-End regression & validation suite testing code generation, Robocopy sync, lifecycle policies, and loop prevention. | Developer CLI / CI |
 | **`README.md`** | Markdown | Comprehensive Operator & User Guide. | Documentation |
 | **`DEVELOPER.md`** | Markdown | Technical architecture, component specifications, and developer manual (this file). | Documentation |
 
@@ -213,16 +214,30 @@ $content = Get-Content -Raw "Avgol-CopyMaster-UI.ps1"
 $errs.Count # Must be 0
 ```
 
-### 3. End-to-End Simulation
-To simulate replication, archiving, purging, and cleanup locally without an external SMB share:
-1. Create mock source and destination folders:
-   ```powershell
-   New-Item -ItemType Directory -Path "C:\temp\TestSim\Source", "C:\temp\TestSim\Dest" -Force
-   "data" | Set-Content "C:\temp\TestSim\Source\sample.csv"
-   (Get-Item "C:\temp\TestSim\Source\sample.csv").LastWriteTime = (Get-Date).AddMonths(-2)
-   ```
-2. Run `Avgol-CopyScript.ps1` targeting these directories with `$EnableSourceDelete = $true` and `$EnableDestMonthlyArchive = $true`.
-3. Verify that `sample.csv` moves to `C:\temp\TestSim\Dest\YYYY-MM\sample.csv` and deletes from `C:\temp\TestSim\Source\`.
+### 3. Automated End-to-End (E2E) Test Suite
+The repository includes a comprehensive, 21-point automated test suite: [`Test-AvgolCopyMaster-E2E.ps1`](file:///c:/Projects/Companies/Avgol/Copy-Script/Test-AvgolCopyMaster-E2E.ps1).
+
+#### Running in Local Sandbox Mode (Default - Zero Network Required):
+```powershell
+.\Test-AvgolCopyMaster-E2E.ps1
+```
+- Creates an isolated sandbox under `C:\temp\Avgol_E2E_Test\`.
+- Generates test files across three simulated timeframes (today, last month, >30 days ago) and pre-creates expired/retained archive directories.
+- Extracts the UI template, performs AST validation, and executes Pass 1 replication.
+- Validates 8 post-replication lifecycle assertions (file movement, pruning, byte-verified source deletion).
+- Executes Pass 2 to verify that Robocopy loop prevention exclusions (`/XD 20*`, `/XF`) prevent re-copying archived files.
+- Audits log generation and content.
+- Automatically cleans up the sandbox upon completion.
+
+#### Running Against a Live SMB Share:
+```powershell
+.\Test-AvgolCopyMaster-E2E.ps1 -RemoteUNC "\\10.91.13.204\qw\E2E_Test" -Username "10.91.13.204\admin" -Password "Avgol2002"
+```
+
+#### Preserving Sandbox Files for Inspection:
+```powershell
+.\Test-AvgolCopyMaster-E2E.ps1 -KeepTestFiles
+```
 
 ---
 
