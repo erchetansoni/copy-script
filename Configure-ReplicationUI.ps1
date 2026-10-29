@@ -695,8 +695,10 @@ function Generate-RobocopyScriptContent
     $mappingsBuilder = [System.Text.StringBuilder]::new()
     $mappingsBuilder.AppendLine('$FolderMappings = @(') | Out-Null
 
-    foreach ($m in $script:MappingsCollection)
+    $mappingCount = $script:MappingsCollection.Count
+    for ($i = 0; $i -lt $mappingCount; $i++)
     {
+        $m = $script:MappingsCollection[$i]
         $tList = ($m.FileTypes -split '[,; ]' | Where-Object { $_ -and $_.Trim() } | ForEach-Object { "`"$_`"" }) -join ', '
         if (-not $tList) { $tList = '"*.*"' }
 
@@ -706,7 +708,11 @@ function Generate-RobocopyScriptContent
         $mappingsBuilder.AppendLine("        Destination = `"$($m.Destination)`"") | Out-Null
         $mappingsBuilder.AppendLine("        FileTypes   = @($tList)") | Out-Null
         $mappingsBuilder.AppendLine('        Enabled     = $true') | Out-Null
-        $mappingsBuilder.AppendLine('    },') | Out-Null
+        if ($i -lt ($mappingCount - 1)) {
+            $mappingsBuilder.AppendLine('    },') | Out-Null
+        } else {
+            $mappingsBuilder.AppendLine('    }') | Out-Null
+        }
     }
     $mappingsBuilder.AppendLine(')') | Out-Null
     $mappingsCode = $mappingsBuilder.ToString()
@@ -892,7 +898,7 @@ function Connect-SourceShare
 
         Write-Log "Connecting to $UNCPath"
         cmd.exe /c "net use `"$UNCPath`" /delete /y" *> $null
-        cmd.exe /c "net use `"$UNCPath`" /user:$SourceUsername $SourcePassword /persistent:no" *> $null
+        cmd.exe /c "net use `"$UNCPath`" /user:`"$SourceUsername`" `"$SourcePassword`" /persistent:no" *> $null
         Start-Sleep -Seconds 2
 
         if (Test-Path -LiteralPath $UNCPath)
@@ -1128,6 +1134,17 @@ function Save-ReplicationScript
         $targetPath = [System.IO.Path]::Combine($deployFolder, $fileName)
         $content = Generate-RobocopyScriptContent
 
+        # Validate PowerShell syntax before saving
+        $parseErrors = $null
+        [System.Management.Automation.Language.Parser]::ParseInput($content, [ref]$null, [ref]$parseErrors) | Out-Null
+        if ($parseErrors -and $parseErrors.Count -gt 0)
+        {
+            $errDetail = ($parseErrors | ForEach-Object { "Line $($_.Extent.StartLineNumber): $($_.Message)" }) -join "`n"
+            Write-ConsoleLog "SYNTAX ERROR in generated script:`n$errDetail" "ERROR"
+            [System.Windows.MessageBox]::Show("Generated script contains syntax errors:`n`n$errDetail", "Script Syntax Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            return $null
+        }
+
         [System.IO.File]::WriteAllText($targetPath, $content, [System.Text.Encoding]::UTF8)
         Write-ConsoleLog "SUCCESS: Generated script saved to: $targetPath" "SUCCESS"
 
@@ -1284,13 +1301,14 @@ function Load-LocalScriptConfig
             $state.AddScript($cfg).Invoke() | Out-Null
             $vars = $state.Runspace.SessionStateProxy.PSVariable
             $mappings = $vars.GetValue("FolderMappings")
+            $globalFileTypes = $vars.GetValue("FileTypes")
 
             if ($mappings)
             {
                 $script:MappingsCollection.Clear()
                 foreach ($m in $mappings)
                 {
-                    $tStr = if ($m.FileTypes) { ($m.FileTypes -join ', ') } else { "*.*" }
+                    $tStr = if ($m.FileTypes) { ($m.FileTypes -join ', ') } elseif ($globalFileTypes) { ($globalFileTypes -join ', ') } else { "*.*" }
                     $script:MappingsCollection.Add([PSCustomObject]@{
                         Name        = $m.Name
                         Source      = $m.Source
