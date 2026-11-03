@@ -461,21 +461,6 @@ if (Test-Path -LiteralPath $secModule)
                         </StackPanel>
                     </Grid>
                 </Border>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="TLS / PFX Cert:" Foreground="#d2a8ff" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBox x:Name="txtTlsPfxPath" Grid.Column="1" Height="28" Text="" VerticalAlignment="Center"/>
-                                    <Button x:Name="btnBrowseTlsPfx" Grid.Column="2" Content="Browse..." Width="70" Height="28" Style="{StaticResource SecondaryButton}" Margin="6,0,0,0"/>
-                                    <Button x:Name="btnManageTlsCert" Grid.Column="4" Content="TLS Cert Wizard (Paste / Generate)" Style="{StaticResource SecurityButton}" Height="28"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </Border>
 
                 <!-- Card 2: Folder Mappings -->
                 <Border Style="{StaticResource CardBorder}">
