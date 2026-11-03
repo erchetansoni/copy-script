@@ -264,6 +264,7 @@ $mappingsCode = @"
 
 $renderedScript = $extractedTemplate
 $renderedScript = $renderedScript.Replace("__GENERATED_TIMESTAMP__", (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
+$renderedScript = $renderedScript.Replace("__SYNC_DIRECTION__", "Pull")
 $renderedScript = $renderedScript.Replace("__MAPPING_COUNT__", "1")
 $renderedScript = $renderedScript.Replace("__SOURCE_USERNAME__", $Username)
 $renderedScript = $renderedScript.Replace("__SOURCE_PASSWORD__", $Password)

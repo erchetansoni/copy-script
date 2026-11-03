@@ -266,18 +266,33 @@ if (Test-Path -LiteralPath $secModule)
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Protocol Selection Bar -->
+                        <!-- Row 0: Section Header & Sync Direction Selector -->
                         <Grid Grid.Row="0" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="1. PROTOCOL &amp; ENDPOINT AUTHENTICATION" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="0" Text="1. PROTOCOL, DIRECTION &amp; ENDPOINT AUTHENTICATION" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                <TextBlock Text="Protocol:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Sync Direction:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="rbPull" GroupName="SyncDir" Content="Remote Source -&gt; Local Dest (Download)" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold" IsChecked="True" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <RadioButton x:Name="rbPush" GroupName="SyncDir" Content="Local Source -&gt; Remote Dest (Upload)" Foreground="#34d399" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 1: Protocol Selection & Port -->
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Protocol:" Foreground="#b0b0c0" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <ComboBox x:Name="cmbProtocol" Width="140" Height="28">
                                     <ComboBoxItem Content="SMB" IsSelected="True"/>
                                     <ComboBoxItem Content="SFTP"/>
@@ -286,13 +301,14 @@ if (Test-Path -LiteralPath $secModule)
                                     <ComboBoxItem Content="FTP"/>
                                     <ComboBoxItem Content="WebDAV"/>
                                 </ComboBox>
-                                <TextBlock Text="Port:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                <TextBlock Text="Port:" Foreground="#b0b0c0" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0"/>
                                 <TextBox x:Name="txtPort" Width="55" Height="28" Text="445" HorizontalContentAlignment="Center"/>
                             </StackPanel>
+                            <TextBlock x:Name="lblDirectionSummary" Grid.Column="2" Text="Direction: Pull mode (Downloading from remote server)" Foreground="#93c5fd" FontSize="11" VerticalAlignment="Center" FontStyle="Italic"/>
                         </Grid>
 
-                        <!-- Host, Username, Password, Connection Test -->
-                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                        <!-- Row 2: Host, Username, Password, Connection Test -->
+                        <Grid Grid.Row="2" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="10"/>
@@ -334,8 +350,8 @@ if (Test-Path -LiteralPath $secModule)
                             </StackPanel>
                         </Grid>
 
-                        <!-- Dynamic Security Panel: SSH Keys / TLS Certificates -->
-                        <StackPanel Grid.Row="2" x:Name="pnlSecurityOptions" Margin="0,4,0,0">
+                        <!-- Row 3: Dynamic Security Panel: SSH Keys / TLS Certificates -->
+                        <StackPanel Grid.Row="3" x:Name="pnlSecurityOptions" Margin="0,4,0,0">
                             <!-- SSH / SFTP / SCP Key Panel -->
                             <Border x:Name="pnlSshKeyBox" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Collapsed">
                                 <Grid>
@@ -377,7 +393,7 @@ if (Test-Path -LiteralPath $secModule)
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
-                            <TextBlock Text="2. FOLDER MAPPINGS (REMOTE SOURCE -> LOCAL DESTINATION)" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="lblMappingHeader" Text="2. FOLDER MAPPINGS (REMOTE SOURCE -&gt; LOCAL DESTINATION)" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="lblMappingCount" Text="0 Mappings" Foreground="#8b949e" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
@@ -411,8 +427,8 @@ if (Test-Path -LiteralPath $secModule)
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="100"/>
-                                <DataGridTextColumn Header="Source (UNC / Remote Path)" Binding="{Binding Source}" Width="2*"/>
-                                <DataGridTextColumn Header="Destination (Local Path)" Binding="{Binding Destination}" Width="2*"/>
+                                <DataGridTextColumn x:Name="colSource" Header="Source (UNC / Remote Path)" Binding="{Binding Source}" Width="2*"/>
+                                <DataGridTextColumn x:Name="colDest" Header="Destination (Local Path)" Binding="{Binding Destination}" Width="2*"/>
                                 <DataGridTextColumn Header="File Types" Binding="{Binding FileTypes}" Width="90"/>
                             </DataGrid.Columns>
                         </DataGrid>
@@ -448,12 +464,19 @@ if (Test-Path -LiteralPath $secModule)
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Source Path (UNC or Remote)" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtMapSource" Height="28" Text="\\10.91.13.204\qw\Test1"/>
+                                <TextBlock x:Name="lblMapSource" Text="Source Path (UNC / Remote)" Style="{StaticResource FieldLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtMapSource" Grid.Column="0" Height="28" Text="\\10.91.13.204\qw\Test1"/>
+                                    <Button x:Name="btnBrowseSource" Grid.Column="1" Content="..." Width="30" Height="28" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0"/>
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="4">
-                                <TextBlock Text="Destination Local Path" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock x:Name="lblMapDest" Text="Destination Path (Local)" Style="{StaticResource FieldLabel}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -694,12 +717,15 @@ $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
 # Auto-bind named controls
 $namedElements = @(
-    "btnLoadConfig", "btnShowServerGuide", "cmbProtocol", "txtPort", "txtHost",
+    "btnLoadConfig", "btnShowServerGuide", "rbPull", "rbPush", "lblDirectionSummary",
+    "cmbProtocol", "txtPort", "txtHost",
     "txtUsername", "chkShowPassword", "txtPassword", "txtPasswordPlain",
     "btnTestSmb", "pnlSecurityOptions", "pnlSshKeyBox", "txtSshKeyPath",
     "btnBrowseSshKey", "btnManageSshKeys", "pnlTlsCertBox", "txtTlsPfxPath",
-    "btnBrowseTlsPfx", "btnManageTlsCert", "lblMappingCount", "dgMappings",
-    "btnRemoveSelected", "btnClearAll", "txtMapName", "txtMapSource", "txtMapDest",
+    "btnBrowseTlsPfx", "btnManageTlsCert",
+    "lblMappingHeader", "lblMappingCount", "dgMappings", "colSource", "colDest",
+    "btnRemoveSelected", "btnClearAll", "txtMapName", "lblMapSource", "txtMapSource",
+    "btnBrowseSource", "lblMapDest", "txtMapDest",
     "btnBrowseDest", "txtMapTypes", "btnAddMapping", "chkEnableSourceDelete",
     "pnlSourceDeleteOptions", "txtSourceDeleteDays", "chkEnableDestArchive",
     "pnlDestArchiveOptions", "chkEnableDestDelete", "pnlDestDeleteOptions",
@@ -820,6 +846,41 @@ $cmbProtocol.Add_SelectionChanged({
 })
 
 # ====================================================================
+# SYNCHRONIZATION DIRECTION (PUSH VS PULL)
+# ====================================================================
+
+function Update-DirectionUI
+{
+    $isPush = $rbPush.IsChecked
+
+    if ($isPush)
+    {
+        $lblDirectionSummary.Text = "Direction: Case 1 - Push mode (Local Source -> Remote Destination)"
+        $lblDirectionSummary.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#34d399")
+        $lblMappingHeader.Text = "2. FOLDER MAPPINGS (LOCAL SOURCE -> REMOTE DESTINATION)"
+        $colSource.Header = "Source (Local Path)"
+        $colDest.Header = "Destination (Remote Path / UNC)"
+        $lblMapSource.Text = "Source Path (Local Machine)"
+        $lblMapDest.Text = "Destination Path (Remote UNC or Server Path)"
+        Write-ConsoleLog "Mode set: Case 1 - Push / Upload (Local Source -> Remote Destination)" "INFO"
+    }
+    else
+    {
+        $lblDirectionSummary.Text = "Direction: Case 2 - Pull mode (Remote Source -> Local Destination)"
+        $lblDirectionSummary.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#60a5fa")
+        $lblMappingHeader.Text = "2. FOLDER MAPPINGS (REMOTE SOURCE -> LOCAL DESTINATION)"
+        $colSource.Header = "Source (UNC / Remote Path)"
+        $colDest.Header = "Destination (Local Path)"
+        $lblMapSource.Text = "Source Path (Remote UNC or Server Path)"
+        $lblMapDest.Text = "Destination Path (Local Machine)"
+        Write-ConsoleLog "Mode set: Case 2 - Pull / Download (Remote Source -> Local Destination)" "INFO"
+    }
+}
+
+$rbPull.Add_Checked({ Update-DirectionUI })
+$rbPush.Add_Checked({ Update-DirectionUI })
+
+# ====================================================================
 # PASSWORD VISIBILITY TOGGLE
 # ====================================================================
 
@@ -883,6 +944,11 @@ function Show-FileBrowser([string]$filter = "All files (*.*)|*.*")
     }
     return $null
 }
+
+$btnBrowseSource.Add_Click({
+    $selected = Show-FolderBrowser $txtMapSource.Text
+    if ($selected) { $txtMapSource.Text = $selected }
+})
 
 $btnBrowseDest.Add_Click({
     $selected = Show-FolderBrowser $txtMapDest.Text
@@ -1545,6 +1611,7 @@ $btnTestSmb.Add_Click({
 
 function Generate-RobocopyScriptContent
 {
+    $syncDir = if ($rbPush.IsChecked) { "Push" } else { "Pull" }
     $proto        = $cmbProtocol.Text
     if (-not $proto) { $proto = ($cmbProtocol.SelectedItem.Content).ToString() }
     $port         = [int]($txtPort.Text.Trim())
@@ -1602,6 +1669,7 @@ function Generate-RobocopyScriptContent
 AVGOL COPY MASTER - AUTO-GENERATED MULTI-PROTOCOL FILE REPLICATION
 ====================================================================================================
 Generated On        : __GENERATED_TIMESTAMP__
+Sync Direction      : __SYNC_DIRECTION__ (Case 1: Push / Case 2: Pull)
 Protocol            : __SOURCE_PROTOCOL__ (Port __SOURCE_PORT__)
 Remote Host         : __SOURCE_HOST__
 Configured Mappings : __MAPPING_COUNT__
@@ -1610,8 +1678,11 @@ Log Directory       : __LOG_FOLDER__
 #>
 
 # ====================================================================
-# PROTOCOL & AUTHENTICATION CONFIGURATION
+# SYNCHRONIZATION DIRECTION & PROTOCOL CONFIGURATION
 # ====================================================================
+
+# Direction: "Pull" (Remote Source -> Local Destination) or "Push" (Local Source -> Remote Destination)
+$SyncDirection       = "__SYNC_DIRECTION__"
 
 $SourceProtocol      = "__SOURCE_PROTOCOL__"
 $SourcePort          = __SOURCE_PORT__
@@ -1628,7 +1699,7 @@ $TlsPfxPath          = "__TLS_PFX_PATH__"
 $TlsPfxPassword      = "__TLS_PFX_PASSWORD__"
 
 # ====================================================================
-# FOLDER MAPPINGS (REMOTE SOURCE -> LOCAL DESTINATION)
+# FOLDER MAPPINGS (SOURCE -> DESTINATION)
 # ====================================================================
 
 __FOLDER_MAPPINGS__
@@ -1825,7 +1896,7 @@ function Connect-SourceShare
 }
 
 # ====================================================================
-# SFTP / SCP REPLICATION ADAPTER
+# SFTP / SCP REPLICATION ADAPTER (BI-DIRECTIONAL: PULL & PUSH)
 # ====================================================================
 
 function Invoke-SshFileReplication
@@ -1837,16 +1908,9 @@ function Invoke-SshFileReplication
 
     try
     {
-        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
-        if (!(Test-Path -LiteralPath $DestPath))
-        {
-            New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
-        }
-
         $port = if ($SourcePort -gt 0) { $SourcePort } else { 22 }
         $hostName = if ($SourceHost) { $SourceHost } else { "127.0.0.1" }
         $user = if ($SourceUsername) { $SourceUsername } else { $env:USERNAME }
-        $remoteSrc = $Mapping.Source.Replace("\", "/")
 
         $authArg = ""
         if ($SshPrivateKeyPath -and (Test-Path -LiteralPath $SshPrivateKeyPath))
@@ -1854,56 +1918,137 @@ function Invoke-SshFileReplication
             $authArg = "-i `"$SshPrivateKeyPath`" -o IdentitiesOnly=yes"
         }
 
-        Write-Log "[$($Mapping.Name)] Starting $Mode Transfer from ${user}@${hostName}:${remoteSrc} -> $DestPath"
+        $isPush = ($SyncDirection -eq "Push")
 
-        if ($Mode -eq "SCP")
+        if ($isPush)
         {
-            $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
-            if (-not $scpCmd)
+            # CASE 1: Local Source -> Remote Destination (Push / Upload)
+            $LocalSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/')
+            $RemoteDestPath  = $Mapping.Destination.Trim().TrimEnd('\', '/').Replace("\", "/")
+
+            if (!(Test-Path -LiteralPath $LocalSourcePath))
             {
-                Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                Write-Log "[$($Mapping.Name)] WARNING: Local source directory does not exist: $LocalSourcePath"
                 return $false
             }
 
-            $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"${user}@${hostName}:${remoteSrc}/*`" `"$DestPath`""
-            $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
-            if ($proc.ExitCode -eq 0)
+            Write-Log "[$($Mapping.Name)] [PUSH] Starting $Mode Upload: $LocalSourcePath -> ${user}@${hostName}:${RemoteDestPath}"
+
+            if ($Mode -eq "SCP")
             {
-                Write-Log "[$($Mapping.Name)] SCP transfer completed successfully."
-                return $true
+                $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
+                if (-not $scpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                    return $false
+                }
+
+                $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"$LocalSourcePath/*`" `"${user}@${hostName}:${RemoteDestPath}/`""
+                $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SCP upload completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SCP upload failed with exit code: $($proc.ExitCode)"
+                    return $false
+                }
             }
             else
             {
-                Write-Log "[$($Mapping.Name)] SCP transfer failed with exit code: $($proc.ExitCode)"
-                return $false
+                # SFTP Push / Upload batch
+                $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
+                if (-not $sftpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
+                    return $false
+                }
+
+                $batchFile = [System.IO.Path]::GetTempFileName()
+                $batchContent = "cd `"$RemoteDestPath`"`nlcd `"$LocalSourcePath`"`nmput *`nbye`n"
+                [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+
+                $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
+                $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
+                Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
+
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP upload completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP upload exited with code: $($proc.ExitCode)"
+                    return $false
+                }
             }
         }
         else
         {
-            $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
-            if (-not $sftpCmd)
+            # CASE 2: Remote Source -> Local Destination (Pull / Download)
+            $RemoteSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/').Replace("\", "/")
+            $LocalDestPath    = $Mapping.Destination.Trim().TrimEnd('\', '/')
+
+            if (!(Test-Path -LiteralPath $LocalDestPath))
             {
-                Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
-                return $false
+                New-Item -ItemType Directory -Path $LocalDestPath -Force | Out-Null
             }
 
-            $batchFile = [System.IO.Path]::GetTempFileName()
-            $batchContent = "cd `"$remoteSrc`"`nlcd `"$DestPath`"`nmget *`nbye`n"
-            [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+            Write-Log "[$($Mapping.Name)] [PULL] Starting $Mode Download: ${user}@${hostName}:${RemoteSourcePath} -> $LocalDestPath"
 
-            $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
-            $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
-            Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
-
-            if ($proc.ExitCode -eq 0)
+            if ($Mode -eq "SCP")
             {
-                Write-Log "[$($Mapping.Name)] SFTP transfer completed successfully."
-                return $true
+                $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
+                if (-not $scpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                    return $false
+                }
+
+                $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"${user}@${hostName}:${RemoteSourcePath}/*`" `"$LocalDestPath`""
+                $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SCP download completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SCP download failed with exit code: $($proc.ExitCode)"
+                    return $false
+                }
             }
             else
             {
-                Write-Log "[$($Mapping.Name)] SFTP transfer exited with code: $($proc.ExitCode)"
-                return $false
+                # SFTP Pull / Download batch
+                $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
+                if (-not $sftpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
+                    return $false
+                }
+
+                $batchFile = [System.IO.Path]::GetTempFileName()
+                $batchContent = "cd `"$RemoteSourcePath`"`nlcd `"$LocalDestPath`"`nmget *`nbye`n"
+                [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+
+                $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
+                $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
+                Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
+
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP download completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP download exited with code: $($proc.ExitCode)"
+                    return $false
+                }
             }
         }
     }
@@ -2283,37 +2428,30 @@ function Invoke-Replication
 {
     if ($SourceProtocol -eq "SMB")
     {
+        # Connect to any UNC paths present in Source OR Destination
         $rootShares = @()
-        $hasLocalSource = $false
         foreach ($m in $FolderMappings)
         {
-            if ($m.Enabled -and $m.Source)
+            if ($m.Enabled)
             {
-                if ($m.Source.StartsWith("\\"))
+                foreach ($targetPath in @($m.Source, $m.Destination))
                 {
-                    $parts = $m.Source.TrimStart('\').Split('\')
-                    if ($parts.Length -ge 2)
+                    if ($targetPath -and $targetPath.StartsWith("\\"))
                     {
-                        $root = "\\$($parts[0])\$($parts[1])"
-                        if ($rootShares -notcontains $root) { $rootShares += $root }
+                        $parts = $targetPath.TrimStart('\').Split('\')
+                        if ($parts.Length -ge 2)
+                        {
+                            $root = "\\$($parts[0])\$($parts[1])"
+                            if ($rootShares -notcontains $root) { $rootShares += $root }
+                        }
                     }
-                }
-                else
-                {
-                    $hasLocalSource = $true
                 }
             }
         }
 
-        if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
-        {
-            Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings."
-            return
-        }
-
-        $connectionFailures = 0
         if ($rootShares.Count -gt 0)
         {
+            $connectionFailures = 0
             foreach ($share in $rootShares)
             {
                 if (-not (Connect-SourceShare -SharePath $share))
@@ -2324,7 +2462,7 @@ function Invoke-Replication
 
             if ($connectionFailures -eq $rootShares.Count)
             {
-                Write-Log "All source shares are unreachable. Skipping copy cycle."
+                Write-Log "All remote SMB shares are unreachable. Skipping copy cycle."
                 return
             }
         }
@@ -2348,29 +2486,28 @@ function Invoke-Replication
         if ($success) { $successCount++ } else { $failureCount++ }
 
         # Post-Copy Lifecycle Actions:
-        if ($success -or (Test-Path -LiteralPath $psobj.Destination))
+        # If destination is locally accessible, perform archive and purge
+        if (($success -or (Test-Path -LiteralPath $psobj.Destination)) -and (Test-Path -LiteralPath $psobj.Destination))
         {
-            # 1. Destination Monthly Auto-Archive (YYYY-MM structure)
             if ($EnableDestMonthlyArchive)
             {
                 Invoke-DestinationMonthlyArchive -Mapping $psobj
             }
 
-            # 2. Destination Archive Purge (Delete old YYYY-MM folders)
             if ($EnableDestArchiveDelete)
             {
                 Invoke-DestinationArchivePurge -Mapping $psobj
             }
+        }
 
-            # 3. Source File Cleanup (Delete verified source files older than X days)
-            if ($EnableSourceDelete)
-            {
-                Invoke-SourceCleanup -Mapping $psobj
-            }
+        # If source is locally accessible, perform source cleanup
+        if ($EnableSourceDelete -and (Test-Path -LiteralPath $psobj.Source))
+        {
+            Invoke-SourceCleanup -Mapping $psobj
         }
     }
 
-    Write-Log "Replication Cycle Finished ($SourceProtocol): $successCount succeeded, $failureCount failed, $skippedCount skipped."
+    Write-Log "Replication Cycle Finished ($SourceProtocol | Direction: $SyncDirection): $successCount succeeded, $failureCount failed, $skippedCount skipped."
 }
 
 # ====================================================================
@@ -2390,6 +2527,7 @@ catch
 
     $rendered = $template
     $rendered = $rendered.Replace("__GENERATED_TIMESTAMP__", (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
+    $rendered = $rendered.Replace("__SYNC_DIRECTION__", $syncDir)
     $rendered = $rendered.Replace("__MAPPING_COUNT__", "$($script:MappingsCollection.Count)")
     $rendered = $rendered.Replace("__SOURCE_PROTOCOL__", $proto)
     $rendered = $rendered.Replace("__SOURCE_PORT__", "$port")
@@ -2597,6 +2735,20 @@ function Load-LocalScriptConfig
     {
         Write-ConsoleLog "Reading existing configuration from: $localScript" "INFO"
         $raw = Get-Content -Raw -LiteralPath $localScript
+
+        if ($raw -match '\$SyncDirection\s*=\s*"([^"]+)"')
+        {
+            $loadedDir = $matches[1]
+            if ($loadedDir -eq "Push")
+            {
+                $rbPush.IsChecked = $true
+            }
+            else
+            {
+                $rbPull.IsChecked = $true
+            }
+            Update-DirectionUI
+        }
 
         if ($raw -match '\$SourceProtocol\s*=\s*"([^"]+)"')
         {

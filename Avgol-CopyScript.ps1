@@ -1,13 +1,13 @@
 <#
 ====================================================================================================
-AVGOL COPY MASTER - MULTI-FOLDER FILE REPLICATION (MULTI-PROTOCOL EDITION)
+AVGOL COPY MASTER - MULTI-FOLDER FILE REPLICATION (MULTI-PROTOCOL & BI-DIRECTIONAL EDITION)
 ====================================================================================================
 
 DESCRIPTION
 -----------
-Monitors remote endpoints (SMB, SFTP, SCP, FTPS, FTP, WebDAV) and replicates files from multiple
-source folders to their respective destinations on the local machine with automated data lifecycle
-policies (Source Cleanup, Monthly Archive, Archive Purge).
+Replicates files across multiple mapped folders supporting both:
+  Case 1: Source is Local Server  -> Destination is Remote Server (Upload / Push)
+  Case 2: Source is Remote Server -> Destination is Local Server  (Download / Pull)
 
 SUPPORTED PROTOCOLS & DEFAULT PORTS
 ------------------------------------
@@ -26,8 +26,11 @@ Uses Windows OpenSSH client (ssh.exe, scp.exe, sftp.exe), robocopy.exe, and .NET
 #>
 
 # ====================================================================
-# PROTOCOL & AUTHENTICATION CONFIGURATION
+# SYNCHRONIZATION DIRECTION & PROTOCOL CONFIGURATION
 # ====================================================================
+
+# Direction: "Pull" (Remote Source -> Local Destination) or "Push" (Local Source -> Remote Destination)
+$SyncDirection       = "Pull"
 
 $SourceProtocol      = "SMB"
 $SourcePort          = 445
@@ -215,7 +218,7 @@ function Cleanup-OldLogs
 }
 
 # ====================================================================
-# PROTOCOL CONNECTION HANDLERS
+# PROTOCOL CONNECTION HANDLERS (SMB)
 # ====================================================================
 
 function Connect-SourceShare
@@ -256,7 +259,7 @@ function Connect-SourceShare
 }
 
 # ====================================================================
-# SFTP / SCP REPLICATION ADAPTER
+# SFTP / SCP REPLICATION ADAPTER (BI-DIRECTIONAL: PULL & PUSH)
 # ====================================================================
 
 function Invoke-SshFileReplication
@@ -268,16 +271,9 @@ function Invoke-SshFileReplication
 
     try
     {
-        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
-        if (!(Test-Path -LiteralPath $DestPath))
-        {
-            New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
-        }
-
         $port = if ($SourcePort -gt 0) { $SourcePort } else { 22 }
         $hostName = if ($SourceHost) { $SourceHost } else { "127.0.0.1" }
         $user = if ($SourceUsername) { $SourceUsername } else { $env:USERNAME }
-        $remoteSrc = $Mapping.Source.Replace("\", "/")
 
         $authArg = ""
         if ($SshPrivateKeyPath -and (Test-Path -LiteralPath $SshPrivateKeyPath))
@@ -285,57 +281,137 @@ function Invoke-SshFileReplication
             $authArg = "-i `"$SshPrivateKeyPath`" -o IdentitiesOnly=yes"
         }
 
-        Write-Log "[$($Mapping.Name)] Starting $Mode Transfer from ${user}@${hostName}:${remoteSrc} -> $DestPath"
+        $isPush = ($SyncDirection -eq "Push")
 
-        if ($Mode -eq "SCP")
+        if ($isPush)
         {
-            $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
-            if (-not $scpCmd)
+            # CASE 1: Local Source -> Remote Destination (Push / Upload)
+            $LocalSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/')
+            $RemoteDestPath  = $Mapping.Destination.Trim().TrimEnd('\', '/').Replace("\", "/")
+
+            if (!(Test-Path -LiteralPath $LocalSourcePath))
             {
-                Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                Write-Log "[$($Mapping.Name)] WARNING: Local source directory does not exist: $LocalSourcePath"
                 return $false
             }
 
-            $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"${user}@${hostName}:${remoteSrc}/*`" `"$DestPath`""
-            $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
-            if ($proc.ExitCode -eq 0)
+            Write-Log "[$($Mapping.Name)] [PUSH] Starting $Mode Upload: $LocalSourcePath -> ${user}@${hostName}:${RemoteDestPath}"
+
+            if ($Mode -eq "SCP")
             {
-                Write-Log "[$($Mapping.Name)] SCP transfer completed successfully."
-                return $true
+                $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
+                if (-not $scpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                    return $false
+                }
+
+                $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"$LocalSourcePath/*`" `"${user}@${hostName}:${RemoteDestPath}/`""
+                $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SCP upload completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SCP upload failed with exit code: $($proc.ExitCode)"
+                    return $false
+                }
             }
             else
             {
-                Write-Log "[$($Mapping.Name)] SCP transfer failed with exit code: $($proc.ExitCode)"
-                return $false
+                # SFTP Push / Upload batch
+                $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
+                if (-not $sftpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
+                    return $false
+                }
+
+                $batchFile = [System.IO.Path]::GetTempFileName()
+                $batchContent = "cd `"$RemoteDestPath`"`nlcd `"$LocalSourcePath`"`nmput *`nbye`n"
+                [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+
+                $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
+                $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
+                Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
+
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP upload completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP upload exited with code: $($proc.ExitCode)"
+                    return $false
+                }
             }
         }
         else
         {
-            # SFTP batch download
-            $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
-            if (-not $sftpCmd)
+            # CASE 2: Remote Source -> Local Destination (Pull / Download)
+            $RemoteSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/').Replace("\", "/")
+            $LocalDestPath    = $Mapping.Destination.Trim().TrimEnd('\', '/')
+
+            if (!(Test-Path -LiteralPath $LocalDestPath))
             {
-                Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
-                return $false
+                New-Item -ItemType Directory -Path $LocalDestPath -Force | Out-Null
             }
 
-            $batchFile = [System.IO.Path]::GetTempFileName()
-            $batchContent = "cd `"$remoteSrc`"`nlcd `"$DestPath`"`nmget *`nbye`n"
-            [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+            Write-Log "[$($Mapping.Name)] [PULL] Starting $Mode Download: ${user}@${hostName}:${RemoteSourcePath} -> $LocalDestPath"
 
-            $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
-            $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
-            Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
-
-            if ($proc.ExitCode -eq 0)
+            if ($Mode -eq "SCP")
             {
-                Write-Log "[$($Mapping.Name)] SFTP transfer completed successfully."
-                return $true
+                $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
+                if (-not $scpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                    return $false
+                }
+
+                $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"${user}@${hostName}:${RemoteSourcePath}/*`" `"$LocalDestPath`""
+                $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SCP download completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SCP download failed with exit code: $($proc.ExitCode)"
+                    return $false
+                }
             }
             else
             {
-                Write-Log "[$($Mapping.Name)] SFTP transfer exited with code: $($proc.ExitCode)"
-                return $false
+                # SFTP Pull / Download batch
+                $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
+                if (-not $sftpCmd)
+                {
+                    Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
+                    return $false
+                }
+
+                $batchFile = [System.IO.Path]::GetTempFileName()
+                $batchContent = "cd `"$RemoteSourcePath`"`nlcd `"$LocalDestPath`"`nmget *`nbye`n"
+                [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+
+                $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
+                $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
+                Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
+
+                if ($proc.ExitCode -eq 0)
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP download completed successfully."
+                    return $true
+                }
+                else
+                {
+                    Write-Log "[$($Mapping.Name)] SFTP download exited with code: $($proc.ExitCode)"
+                    return $false
+                }
             }
         }
     }
@@ -347,7 +423,7 @@ function Invoke-SshFileReplication
 }
 
 # ====================================================================
-# RUN ROBOCOPY FOR SMB MAPPING
+# RUN ROBOCOPY FOR SMB MAPPING (BI-DIRECTIONAL)
 # ====================================================================
 
 function Start-RobocopyCopy
@@ -374,7 +450,7 @@ function Start-RobocopyCopy
         $activeTypes = if ($Mapping.FileTypes) { $Mapping.FileTypes } else { $FileTypes }
         $DetailedLog = [System.IO.Path]::Combine($LogFolder, "Robocopy_Detail.log")
 
-        Write-Log "[$($Mapping.Name)] Starting Robocopy Sync"
+        Write-Log "[$($Mapping.Name)] Starting Robocopy Sync ($SyncDirection)"
         Write-Log "[$($Mapping.Name)] Source: $SourcePath"
         Write-Log "[$($Mapping.Name)] Dest  : $DestPath"
 
@@ -615,7 +691,7 @@ function Invoke-DestinationArchivePurge
 }
 
 # ====================================================================
-# DATA LIFECYCLE: REMOTE SOURCE CLEANUP
+# DATA LIFECYCLE: SOURCE CLEANUP (DELETE OLD SOURCE FILES)
 # ====================================================================
 
 function Invoke-SourceCleanup
@@ -715,37 +791,30 @@ function Invoke-Replication
 {
     if ($SourceProtocol -eq "SMB")
     {
+        # Connect to any UNC paths present in Source OR Destination
         $rootShares = @()
-        $hasLocalSource = $false
         foreach ($m in $FolderMappings)
         {
-            if ($m.Enabled -and $m.Source)
+            if ($m.Enabled)
             {
-                if ($m.Source.StartsWith("\\"))
+                foreach ($targetPath in @($m.Source, $m.Destination))
                 {
-                    $parts = $m.Source.TrimStart('\').Split('\')
-                    if ($parts.Length -ge 2)
+                    if ($targetPath -and $targetPath.StartsWith("\\"))
                     {
-                        $root = "\\$($parts[0])\$($parts[1])"
-                        if ($rootShares -notcontains $root) { $rootShares += $root }
+                        $parts = $targetPath.TrimStart('\').Split('\')
+                        if ($parts.Length -ge 2)
+                        {
+                            $root = "\\$($parts[0])\$($parts[1])"
+                            if ($rootShares -notcontains $root) { $rootShares += $root }
+                        }
                     }
-                }
-                else
-                {
-                    $hasLocalSource = $true
                 }
             }
         }
 
-        if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
-        {
-            Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings."
-            return
-        }
-
-        $connectionFailures = 0
         if ($rootShares.Count -gt 0)
         {
+            $connectionFailures = 0
             foreach ($share in $rootShares)
             {
                 if (-not (Connect-SourceShare -SharePath $share))
@@ -756,7 +825,7 @@ function Invoke-Replication
 
             if ($connectionFailures -eq $rootShares.Count)
             {
-                Write-Log "All source shares are unreachable. Skipping copy cycle."
+                Write-Log "All remote SMB shares are unreachable. Skipping copy cycle."
                 return
             }
         }
@@ -780,7 +849,8 @@ function Invoke-Replication
         if ($success) { $successCount++ } else { $failureCount++ }
 
         # Post-Copy Lifecycle Actions:
-        if ($success -or (Test-Path -LiteralPath $psobj.Destination))
+        # If destination is locally accessible, perform archive and purge
+        if (($success -or (Test-Path -LiteralPath $psobj.Destination)) -and (Test-Path -LiteralPath $psobj.Destination))
         {
             if ($EnableDestMonthlyArchive)
             {
@@ -791,15 +861,16 @@ function Invoke-Replication
             {
                 Invoke-DestinationArchivePurge -Mapping $psobj
             }
+        }
 
-            if ($EnableSourceDelete)
-            {
-                Invoke-SourceCleanup -Mapping $psobj
-            }
+        # If source is locally accessible, perform source cleanup
+        if ($EnableSourceDelete -and (Test-Path -LiteralPath $psobj.Source))
+        {
+            Invoke-SourceCleanup -Mapping $psobj
         }
     }
 
-    Write-Log "Replication Cycle Finished ($SourceProtocol): $successCount succeeded, $failureCount failed, $skippedCount skipped."
+    Write-Log "Replication Cycle Finished ($SourceProtocol | Direction: $SyncDirection): $successCount succeeded, $failureCount failed, $skippedCount skipped."
 }
 
 # ====================================================================
