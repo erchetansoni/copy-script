@@ -198,33 +198,78 @@ if (Test-Path -LiteralPath $secModule)
             </Setter>
         </Style>
 
-        <!-- Button Base -->
+        <!-- Button Base with Custom Dark Template & High-Contrast Hover -->
         <Style x:Key="BaseButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Primary Action Button -->
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
             <Setter Property="Background" Value="#0969da"/>
             <Setter Property="Foreground" Value="#ffffff"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1f7ff0"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#0854b0"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Success Button -->
         <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
             <Setter Property="Background" Value="#238636"/>
             <Setter Property="Foreground" Value="#ffffff"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2ea043"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1a6328"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Secondary Outline Button -->
         <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
             <Setter Property="Background" Value="#2d2d3a"/>
-            <Setter Property="Foreground" Value="#d0d0df"/>
+            <Setter Property="Foreground" Value="#e0e0ea"/>
             <Setter Property="BorderBrush" Value="#454558"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#3d3d4e"/>
+                    <Setter Property="BorderBrush" Value="#58a6ff"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#22222c"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Danger Button -->
@@ -233,12 +278,30 @@ if (Test-Path -LiteralPath $secModule)
             <Setter Property="Foreground" Value="#ffffff"/>
             <Setter Property="Padding" Value="8,3"/>
             <Setter Property="FontSize" Value="10"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#da3633"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#891a1c"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Purple Security Button -->
         <Style x:Key="SecurityButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
             <Setter Property="Background" Value="#6e40c9"/>
             <Setter Property="Foreground" Value="#ffffff"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#8957e5"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#55309d"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
