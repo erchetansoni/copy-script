@@ -292,110 +292,171 @@ function Get-RemoteServerSetupGuide
     {
         { $_ -in "SFTP", "SCP" }
         {
-            $sb.AppendLine("1. SSH PUBLIC KEY DEPLOYMENT ON REMOTE SERVER") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("To establish passwordless, encrypted $Protocol connections, the generated Public Key") | Out-Null
-            $sb.AppendLine("must be placed in the remote user's `~/.ssh/authorized_keys` file.") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> OPTION A: WINDOWS SERVER (RECOMMENDED) - 1-CLICK POWERSHELL SCRIPT <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine("Open PowerShell as Administrator on the Remote Windows Server and paste:") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("A. FOR LINUX / UNIX REMOTE SERVERS:") | Out-Null
-            $sb.AppendLine("   Run the following commands as '$RemoteUser' on the remote server:") | Out-Null
-            $sb.AppendLine("   ------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("   mkdir -p ~/.ssh") | Out-Null
-            $sb.AppendLine("   chmod 700 ~/.ssh") | Out-Null
+            $sb.AppendLine("# --- COPY FROM HERE DOWN ---") | Out-Null
+            $sb.AppendLine("# 1. Install & start OpenSSH Server if not already installed") | Out-Null
+            $sb.AppendLine("if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {") | Out-Null
+            $sb.AppendLine("    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 -ErrorAction SilentlyContinue") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("Start-Service sshd -ErrorAction SilentlyContinue") | Out-Null
+            $sb.AppendLine("Set-Service -Name sshd -StartupType 'Automatic'") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# 2. Open Firewall Port $Port") | Out-Null
+            $sb.AppendLine("if (-not (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue)) {") | Out-Null
+            $sb.AppendLine("    New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH SSH Server (Port $Port)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort $Port | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# 3. Configure Authorized Public Key") | Out-Null
             if ($PublicKeyContent)
             {
-                $sb.AppendLine("   echo '$PublicKeyContent' >> ~/.ssh/authorized_keys") | Out-Null
+                $sb.AppendLine("`$pubKey = `"$PublicKeyContent`"") | Out-Null
             }
             else
             {
-                $sb.AppendLine("   echo '<PASTE_YOUR_PUBLIC_KEY_HERE>' >> ~/.ssh/authorized_keys") | Out-Null
+                $sb.AppendLine("`$pubKey = `"<PASTE_PUBLIC_KEY_HERE>`"") | Out-Null
             }
-            $sb.AppendLine("   chmod 600 ~/.ssh/authorized_keys") | Out-Null
-            $sb.AppendLine("   restorecon -Rv ~/.ssh # (Required for RHEL/CentOS/SELinux)") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("B. FOR WINDOWS OPENSSH REMOTE SERVERS:") | Out-Null
-            $sb.AppendLine("   If '$RemoteUser' is a standard user, paste the public key into:") | Out-Null
-            $sb.AppendLine("     C:\Users\$RemoteUser\.ssh\authorized_keys") | Out-Null
-            $sb.AppendLine("   If '$RemoteUser' is an Administrator (member of Administrators group):") | Out-Null
-            $sb.AppendLine("     C:\ProgramData\ssh\administrators_authorized_keys") | Out-Null
-            $sb.AppendLine("   Set strict Windows ACLs (must only be accessible by SYSTEM and Administrators):") | Out-Null
-            $sb.AppendLine("     icacls C:\ProgramData\ssh\administrators_authorized_keys /inheritance:r /grant `"Administrators:F`" /grant `"SYSTEM:F`"") | Out-Null
+            $sb.AppendLine("# Place key in Administrators or User authorized_keys depending on account type:") | Out-Null
+            $sb.AppendLine("`$isAdminKey = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)") | Out-Null
+            $sb.AppendLine("`$adminKeyFile = `"`$env:ProgramData\ssh\administrators_authorized_keys`"") | Out-Null
+            $sb.AppendLine("`$userKeyDir  = `"`$env:USERPROFILE\.ssh`"") | Out-Null
+            $sb.AppendLine("`$userKeyFile = `"`$userKeyDir\authorized_keys`"") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("2. FIREWALL CONFIGURATION") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("Ensure incoming TCP traffic on Port $Port is allowed:") | Out-Null
-            $sb.AppendLine("  * Linux (UFW)     : sudo ufw allow $Port/tcp comment 'SSH/SFTP Port'") | Out-Null
-            $sb.AppendLine("  * Linux (firewalld: sudo firewall-cmd --permanent --add-port=$Port/tcp && sudo firewall-cmd --reload") | Out-Null
-            $sb.AppendLine("  * Windows Firewall: netsh advfirewall firewall add rule name=`"OpenSSH Server ($Port)`" dir=in action=allow protocol=TCP localport=$Port") | Out-Null
+            $sb.AppendLine("if (!(Test-Path -LiteralPath `$adminKeyFile)) {") | Out-Null
+            $sb.AppendLine("    New-Item -ItemType File -Path `$adminKeyFile -Force | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("Add-Content -Path `$adminKeyFile -Value `$pubKey -Force") | Out-Null
+            $sb.AppendLine("icacls `$adminKeyFile /inheritance:r /grant `"Administrators:F`" /grant `"SYSTEM:F`" | Out-Null") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("3. VERIFY SSH SERVICE STATUS") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("  * Linux  : sudo systemctl restart sshd && sudo systemctl status sshd") | Out-Null
-            $sb.AppendLine("  * Windows: Restart-Service sshd; Get-Service sshd") | Out-Null
+            $sb.AppendLine("if (!(Test-Path -LiteralPath `$userKeyDir)) {") | Out-Null
+            $sb.AppendLine("    New-Item -ItemType Directory -Path `$userKeyDir -Force | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("Add-Content -Path `$userKeyFile -Value `$pubKey -Force") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("Restart-Service sshd") | Out-Null
+            $sb.AppendLine("Write-Host 'SUCCESS: Windows OpenSSH Server configured and ready on Port $Port!' -ForegroundColor Green") | Out-Null
+            $sb.AppendLine("# --- END OF WINDOWS SCRIPT ---") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> OPTION B: LINUX / UNIX SERVER (1-CLICK BASH SCRIPT) <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine("Run this block in bash terminal on the remote Linux server:") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("mkdir -p ~/.ssh && chmod 700 ~/.ssh") | Out-Null
+            if ($PublicKeyContent)
+            {
+                $sb.AppendLine("echo '$PublicKeyContent' >> ~/.ssh/authorized_keys") | Out-Null
+            }
+            else
+            {
+                $sb.AppendLine("echo '<PASTE_PUBLIC_KEY_HERE>' >> ~/.ssh/authorized_keys") | Out-Null
+            }
+            $sb.AppendLine("chmod 600 ~/.ssh/authorized_keys") | Out-Null
+            $sb.AppendLine("sudo ufw allow $Port/tcp 2>/dev/null || sudo firewall-cmd --permanent --add-port=$Port/tcp && sudo firewall-cmd --reload 2>/dev/null") | Out-Null
+            $sb.AppendLine("sudo systemctl restart sshd") | Out-Null
+            $sb.AppendLine("echo 'SUCCESS: Linux SSH/SFTP configured!'") | Out-Null
         }
 
         "SMB"
         {
-            $sb.AppendLine("1. SMB / CIFS SHARE PERMISSIONS (Port $Port)") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("Ensure the folder is shared with appropriate Share & NTFS read permissions:") | Out-Null
-            $sb.AppendLine("  * Grant '$RemoteUser' at least 'Read' (or 'Read & Change' if source delete is enabled).") | Out-Null
-            $sb.AppendLine("  * Confirm SMBv2 / SMBv3 is enabled on the remote Windows server:") | Out-Null
-            $sb.AppendLine("      Get-SmbServerConfiguration | Select-Object EnableSMB2Protocol") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> WINDOWS SERVER (SMB SHARE & FIREWALL) - 1-CLICK POWERSHELL SCRIPT <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine("Open PowerShell as Administrator on the Remote Windows Server and paste:") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("2. FIREWALL CONFIGURATION") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("Ensure Windows Firewall allows File and Printer Sharing (Ports 445 & 139):") | Out-Null
-            $sb.AppendLine("  * Windows Firewall: Enable-NetFirewallRule -DisplayGroup `"File and Printer Sharing`"") | Out-Null
-            $sb.AppendLine("  * Or specific port: netsh advfirewall firewall add rule name=`"SMB-In-445`" dir=in action=allow protocol=TCP localport=445") | Out-Null
+            $sb.AppendLine("# --- COPY FROM HERE DOWN ---") | Out-Null
+            $sb.AppendLine("# 1. Enable Windows File and Printer Sharing in Firewall (Ports 445, 139)") | Out-Null
+            $sb.AppendLine("Enable-NetFirewallRule -DisplayGroup 'File and Printer Sharing' -ErrorAction SilentlyContinue") | Out-Null
+            $sb.AppendLine("if (-not (Get-NetFirewallRule -Name 'SMB-In-445' -ErrorAction SilentlyContinue)) {") | Out-Null
+            $sb.AppendLine("    New-NetFirewallRule -Name 'SMB-In-445' -DisplayName 'SMB Inbound Port 445' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 445 | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# 2. Verify SMBv2/SMBv3 is Enabled") | Out-Null
+            $sb.AppendLine("Set-SmbServerConfiguration -EnableSMB2Protocol `$true -Force") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# 3. Example: Create and Share Folder with Permissions for '$RemoteUser'") | Out-Null
+            $sb.AppendLine("# (Adjust folder path 'C:\ReplicationData' and share name as needed)") | Out-Null
+            $sb.AppendLine("`$shareFolder = 'C:\ReplicationData'") | Out-Null
+            $sb.AppendLine("`$shareName   = 'ReplicationData'") | Out-Null
+            $sb.AppendLine("if (!(Test-Path -LiteralPath `$shareFolder)) {") | Out-Null
+            $sb.AppendLine("    New-Item -ItemType Directory -Path `$shareFolder -Force | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("if (-not (Get-SmbShare -Name `$shareName -ErrorAction SilentlyContinue)) {") | Out-Null
+            $sb.AppendLine("    New-SmbShare -Name `$shareName -Path `$shareFolder -FullAccess '$RemoteUser', 'Administrators' | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("icacls `$shareFolder /grant `"${RemoteUser}:(OI)(CI)M`" /inheritance:e | Out-Null") | Out-Null
+            $sb.AppendLine("Write-Host 'SUCCESS: Windows SMB Sharing and Firewall rules active on Port 445!' -ForegroundColor Green") | Out-Null
+            $sb.AppendLine("# --- END OF WINDOWS SCRIPT ---") | Out-Null
         }
 
         "FTPS"
         {
-            $sb.AppendLine("1. TLS / SSL CERTIFICATE BINDING FOR FTPS (Port $Port)") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("FTPS requires an X.509 SSL/TLS Certificate bound to the FTP Service on the server.") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> WINDOWS SERVER (IIS FTPS & FIREWALL) - 1-CLICK POWERSHELL SETUP <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
             if ($CertThumbprint)
             {
                 $sb.AppendLine("Active Certificate Thumbprint: $CertThumbprint") | Out-Null
-                $sb.AppendLine("Common Name (Subject)        : $CertCommonName") | Out-Null
+                $sb.AppendLine("Certificate Subject          : $CertCommonName") | Out-Null
+                $sb.AppendLine("") | Out-Null
             }
+            $sb.AppendLine("Open PowerShell as Administrator on the Remote Windows Server and paste:") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("A. FOR IIS FTP SERVER ON WINDOWS:") | Out-Null
-            $sb.AppendLine("   1. Open IIS Manager -> Click Server Root -> 'Server Certificates'.") | Out-Null
-            $sb.AppendLine("   2. Import the generated .pfx file.") | Out-Null
-            $sb.AppendLine("   3. Go to your FTP Site -> 'FTP SSL Settings'.") | Out-Null
-            $sb.AppendLine("   4. Select the certificate and set SSL Policy to 'Require SSL connections'.") | Out-Null
-            $sb.AppendLine("   5. For mTLS (Mutual Authentication), select 'Client Certificates: Require'.") | Out-Null
+            $sb.AppendLine("# --- COPY FROM HERE DOWN ---") | Out-Null
+            $sb.AppendLine("# 1. Open FTPS Control (Port $Port) & Data Channel Firewall Ports") | Out-Null
+            $sb.AppendLine("New-NetFirewallRule -Name 'FTPS-Control' -DisplayName 'FTPS Control (Port $Port)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort $Port -ErrorAction SilentlyContinue | Out-Null") | Out-Null
+            $sb.AppendLine("New-NetFirewallRule -Name 'FTPS-Data' -DisplayName 'FTPS Passive Data (50000-50100)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 50000-50100 -ErrorAction SilentlyContinue | Out-Null") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("B. FOR VSFTPD (LINUX):") | Out-Null
-            $sb.AppendLine("   Place the exported .crt.pem and .pfx/.key onto `/etc/ssl/certs/` and configure:") | Out-Null
-            $sb.AppendLine("     ssl_enable=YES") | Out-Null
-            $sb.AppendLine("     rsa_cert_file=/etc/ssl/certs/avgol_tls.crt.pem") | Out-Null
-            $sb.AppendLine("     require_ssl_reuse=NO") | Out-Null
-            $sb.AppendLine("     ssl_ciphers=HIGH") | Out-Null
+            $sb.AppendLine("# 2. Import TLS Certificate (.pfx) into Windows LocalMachine Personal Store") | Out-Null
+            $sb.AppendLine("# (Copy your generated .pfx file to remote server C:\temp\avgol_cert.pfx first)") | Out-Null
+            $sb.AppendLine("`$pfxPath = 'C:\temp\avgol_cert.pfx'") | Out-Null
+            $sb.AppendLine("`$pfxPass = 'AvgolSecurePassword123!'") | Out-Null
+            $sb.AppendLine("if (Test-Path -LiteralPath `$pfxPath) {") | Out-Null
+            $sb.AppendLine("    Import-PfxCertificate -FilePath `$pfxPath -CertStoreLocation 'Cert:\LocalMachine\My' -Password (ConvertTo-SecureString `$pfxPass -AsPlainText -Force) | Out-Null") | Out-Null
+            $sb.AppendLine("    Write-Host 'Imported TLS Certificate into LocalMachine Store' -ForegroundColor Green") | Out-Null
+            $sb.AppendLine("}") | Out-Null
             $sb.AppendLine("") | Out-Null
-            $sb.AppendLine("2. FIREWALL & PASSIVE PORTS") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("Allow the FTPS control port ($Port) AND passive data port ranges:") | Out-Null
-            $sb.AppendLine("  * Command: netsh advfirewall firewall add rule name=`"FTPS-Control`" dir=in action=allow protocol=TCP localport=$Port") | Out-Null
-            $sb.AppendLine("  * Passive data ports (e.g. 50000-50100):") | Out-Null
-            $sb.AppendLine("    netsh advfirewall firewall add rule name=`"FTPS-Passive`" dir=in action=allow protocol=TCP localport=50000-50100") | Out-Null
+            $sb.AppendLine("# 3. In IIS Manager:") | Out-Null
+            $sb.AppendLine("#    - Go to FTP Site -> 'FTP SSL Settings' -> Select certificate -> 'Require SSL'") | Out-Null
+            $sb.AppendLine("Write-Host 'SUCCESS: Windows Firewall configured for FTPS!' -ForegroundColor Green") | Out-Null
+            $sb.AppendLine("# --- END OF WINDOWS SCRIPT ---") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> OPTION B: LINUX VSFTPD CONFIGURATION <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine("Copy .crt.pem and .key to /etc/ssl/certs/ and add to /etc/vsftpd.conf:") | Out-Null
+            $sb.AppendLine("  ssl_enable=YES") | Out-Null
+            $sb.AppendLine("  rsa_cert_file=/etc/ssl/certs/avgol_tls.crt.pem") | Out-Null
+            $sb.AppendLine("  sudo systemctl restart vsftpd") | Out-Null
         }
 
         "WebDAV"
         {
-            $sb.AppendLine("1. HTTPS / WEBDAV TLS CERTIFICATE (Port $Port)") | Out-Null
-            $sb.AppendLine("--------------------------------------------------------------------------------") | Out-Null
-            $sb.AppendLine("WebDAV over HTTPS requires an SSL Certificate bound to IIS or Apache/Nginx port $Port.") | Out-Null
-            $sb.AppendLine("  * IIS: In Site Bindings, add 'https' on port $Port and select the certificate.") | Out-Null
-            $sb.AppendLine("  * In WebDAV Authoring Rules, ensure user '$RemoteUser' has Read access.") | Out-Null
-            $sb.AppendLine("  * Firewall: netsh advfirewall firewall add rule name=`"HTTPS-WebDAV`" dir=in action=allow protocol=TCP localport=$Port") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine(">>> WINDOWS SERVER (IIS WEBDAV & FIREWALL) - 1-CLICK POWERSHELL SETUP <<<") | Out-Null
+            $sb.AppendLine("================================================================================") | Out-Null
+            $sb.AppendLine("Open PowerShell as Administrator on the Remote Windows Server and paste:") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# --- COPY FROM HERE DOWN ---") | Out-Null
+            $sb.AppendLine("# 1. Open Inbound HTTPS Port $Port in Windows Firewall") | Out-Null
+            $sb.AppendLine("if (-not (Get-NetFirewallRule -Name 'WebDAV-HTTPS-In' -ErrorAction SilentlyContinue)) {") | Out-Null
+            $sb.AppendLine("    New-NetFirewallRule -Name 'WebDAV-HTTPS-In' -DisplayName 'WebDAV HTTPS (Port $Port)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort $Port | Out-Null") | Out-Null
+            $sb.AppendLine("}") | Out-Null
+            $sb.AppendLine("") | Out-Null
+            $sb.AppendLine("# 2. Enable WebDAV Feature on IIS (if not installed)") | Out-Null
+            $sb.AppendLine("Install-WindowsFeature Web-DAV-Publishing, Web-Http-Auth -ErrorAction SilentlyContinue | Out-Null") | Out-Null
+            $sb.AppendLine("Write-Host 'SUCCESS: Windows Firewall & WebDAV ready on Port $Port!' -ForegroundColor Green") | Out-Null
+            $sb.AppendLine("# --- END OF WINDOWS SCRIPT ---") | Out-Null
         }
 
         Default
         {
-            $sb.AppendLine("Ensure Port $Port is open in the remote firewall and service is running.") | Out-Null
+            $sb.AppendLine("Windows Server Firewall Rule:") | Out-Null
+            $sb.AppendLine("New-NetFirewallRule -Name '$Protocol-In' -DisplayName '$Protocol Port $Port' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort $Port") | Out-Null
         }
     }
 
