@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 :: ====================================================================
-:: Avgol Copy Master Launcher
+:: Copy Master Launcher
 :: ====================================================================
 
 :: Check for Administrative privileges
@@ -15,16 +15,17 @@ if %errorLevel% neq 0 (
 
 :: Switch to script directory
 cd /d "%~dp0"
-title Avgol Copy Master
+title Copy Master
 
 echo ====================================================================
-echo Starting Avgol Copy Master GUI...
+echo Starting Copy Master GUI...
 echo ====================================================================
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Avgol-CopyMaster-UI.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0CopyMaster-UI.ps1"
 
 if %errorLevel% neq 0 (
     echo.
     echo [ERROR] An error occurred while launching the configurator.
     pause
 )
+

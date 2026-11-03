@@ -1,7 +1,7 @@
-# Avgol Copy Master - Developer & Architecture Guide
+# Copy Master - Developer & Architecture Guide
 
 > **Technical Reference, Component Architecture & Internals**  
-> For software engineers, systems programmers, and automation developers maintaining or extending the Avgol Copy Master codebase.
+> For software engineers, systems programmers, and automation developers maintaining or extending the Copy Master codebase.
 
 ---
 
@@ -9,9 +9,9 @@
 
 ```mermaid
 graph TD
-    A[Launch-AvgolCopyMaster.bat] -->|Check UAC / Elevate| B[Avgol-CopyMaster-UI.ps1]
+    A[Launch-CopyMaster.bat] -->|Check UAC / Elevate| B[CopyMaster-UI.ps1]
     B -->|XAML Parsing| C[WPF GUI Presentation Layer]
-    C -->|Read / Pre-populate| D[Avgol-CopyScript.ps1]
+    C -->|Read / Pre-populate| D[CopyScript.ps1]
     C -->|User Interaction| E[In-Memory Config State]
     E -->|Template Interpolation| F[Code Generation Engine]
     F -->|AST Parser Validation| G[System.Management.Automation.Language.Parser]
@@ -33,11 +33,11 @@ graph TD
 
 | File | Language | Purpose | Runtime Context |
 | :--- | :--- | :--- | :--- |
-| **`Launch-AvgolCopyMaster.bat`** | Windows Batch | Bootstrap launcher; performs UAC detection and auto-elevation to Administrator. | Interactive user context |
-| **`Avgol-CopyMaster-UI.ps1`** | PowerShell 5.1 / WPF | Standalone desktop GUI, event handlers, DataGrid state manager, template generator, and syntax validator. | Elevated Administrator (`powershell.exe`) |
-| **`Avgol-CopyScript.ps1`** | PowerShell 5.1 | Standalone reference script and fallback template containing complete replication and lifecycle logic. | Manual CLI or scheduled task |
-| **`Install-AvgolTask.ps1`** | PowerShell 5.1 | Headless CLI script installer for registering `Avgol-CopyScript.ps1` in Task Scheduler without opening the GUI. | Elevated CLI |
-| **`Test-AvgolCopyMaster-E2E.ps1`** | PowerShell 5.1 | Automated End-to-End regression & validation suite testing code generation, Robocopy sync, lifecycle policies, and loop prevention. | Developer CLI / CI |
+| **`Launch-CopyMaster.bat`** | Windows Batch | Bootstrap launcher; performs UAC detection and auto-elevation to Administrator. | Interactive user context |
+| **`CopyMaster-UI.ps1`** | PowerShell 5.1 / WPF | Standalone desktop GUI, event handlers, DataGrid state manager, template generator, and syntax validator. | Elevated Administrator (`powershell.exe`) |
+| **`CopyScript.ps1`** | PowerShell 5.1 | Standalone reference script and fallback template containing complete replication and lifecycle logic. | Manual CLI or scheduled task |
+| **`Install-Task.ps1`** | PowerShell 5.1 | Headless CLI script installer for registering `CopyScript.ps1` in Task Scheduler without opening the GUI. | Elevated CLI |
+| **`Test-CopyMaster-E2E.ps1`** | PowerShell 5.1 | Automated End-to-End regression & validation suite testing code generation, Robocopy sync, lifecycle policies, and loop prevention. | Developer CLI / CI |
 | **`README.md`** | Markdown | Comprehensive Operator & User Guide. | Documentation |
 | **`DEVELOPER.md`** | Markdown | Technical architecture, component specifications, and developer manual (this file). | Documentation |
 
@@ -47,7 +47,7 @@ graph TD
 
 ### 1. Presentation Layer (WPF via Native PowerShell)
 - **Framework**: Built on `System.Windows.PresentationFramework` and `System.Windows.Markup.XamlReader`.
-- **Zero Compilation**: The entire XAML UI is embedded directly as an XML string inside `Avgol-CopyMaster-UI.ps1`. This ensures it runs instantly on any Windows workstation without Visual Studio, MSBuild, or .NET SDK installation.
+- **Zero Compilation**: The entire XAML UI is embedded directly as an XML string inside `CopyMaster-UI.ps1`. This ensures it runs instantly on any Windows workstation without Visual Studio, MSBuild, or .NET SDK installation.
 - **Dynamic Control Binding**:
   ```powershell
   $reader = [System.Xml.XmlNodeReader]::new($xaml)
@@ -200,7 +200,7 @@ graph TD
 Run on any script in the repository:
 ```powershell
 $errors = $null
-[System.Management.Automation.Language.Parser]::ParseFile("Avgol-CopyMaster-UI.ps1", [ref]$null, [ref]$errors)
+[System.Management.Automation.Language.Parser]::ParseFile("CopyMaster-UI.ps1", [ref]$null, [ref]$errors)
 if ($errors) { $errors | ForEach-Object { Write-Error $_ } } else { "Syntax Clean!" }
 ```
 
@@ -208,20 +208,20 @@ if ($errors) { $errors | ForEach-Object { Write-Error $_ } } else { "Syntax Clea
 Verify that the UI template engine produces clean code:
 ```powershell
 # In PowerShell:
-$content = Get-Content -Raw "Avgol-CopyMaster-UI.ps1"
+$content = Get-Content -Raw "CopyMaster-UI.ps1"
 # Test parsing
 [System.Management.Automation.Language.Parser]::ParseInput($content, [ref]$null, [ref]$errs)
 $errs.Count # Must be 0
 ```
 
 ### 3. Automated End-to-End (E2E) Test Suite
-The repository includes a comprehensive, 21-point automated test suite: [`Test-AvgolCopyMaster-E2E.ps1`](file:///c:/Projects/Companies/Avgol/Copy-Script/Test-AvgolCopyMaster-E2E.ps1).
+The repository includes a comprehensive, 21-point automated test suite: [`Test-CopyMaster-E2E.ps1`](file:///c:/Projects/Companies/Copy Master/Copy-Script/Test-CopyMaster-E2E.ps1).
 
 #### Running in Local Sandbox Mode (Default - Zero Network Required):
 ```powershell
-.\Test-AvgolCopyMaster-E2E.ps1
+.\Test-CopyMaster-E2E.ps1
 ```
-- Creates an isolated sandbox under `C:\temp\Avgol_E2E_Test\`.
+- Creates an isolated sandbox under `C:\temp\CopyMaster_E2E_Test\`.
 - Generates test files across three simulated timeframes (today, last month, >30 days ago) and pre-creates expired/retained archive directories.
 - Extracts the UI template, performs AST validation, and executes Pass 1 replication.
 - Validates 8 post-replication lifecycle assertions (file movement, pruning, byte-verified source deletion).
@@ -231,12 +231,12 @@ The repository includes a comprehensive, 21-point automated test suite: [`Test-A
 
 #### Running Against a Live SMB Share:
 ```powershell
-.\Test-AvgolCopyMaster-E2E.ps1 -RemoteUNC "\\10.91.13.204\qw\E2E_Test" -Username "10.91.13.204\admin" -Password "Avgol2002"
+.\Test-CopyMaster-E2E.ps1 -RemoteUNC "\\10.91.13.204\qw\E2E_Test" -Username "10.91.13.204\admin" -Password "SecretPass123"
 ```
 
 #### Preserving Sandbox Files for Inspection:
 ```powershell
-.\Test-AvgolCopyMaster-E2E.ps1 -KeepTestFiles
+.\Test-CopyMaster-E2E.ps1 -KeepTestFiles
 ```
 
 ---
