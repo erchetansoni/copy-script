@@ -2686,47 +2686,47 @@ $btnDeployAndCreateTask.Add_Click({
     # Delete existing task if present
     cmd.exe /c "schtasks /Delete /TN `"$taskName`" /F" *> $null
 
-    # Create new task using PowerShell ScheduledTasks cmdlets with Hidden Window and non-interactive background execution
+    # Create new task using PowerShell ScheduledTasks cmdlets or schtasks fallback
     $taskCreated = $false
     $createError = ""
+
+    # Clean targetScript path for execution command
+    $safeScriptPath = $targetScript.Trim('"', "'")
 
     try
     {
         $action = New-ScheduledTaskAction `
             -Execute "powershell.exe" `
-            -Argument "-NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$targetScript`""
+            -Argument "-NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$safeScriptPath`""
 
         $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $repeatMinutes)
         
-        $logonType = if ($runAsUser -match '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') { "ServiceAccount" } else { "Password" }
-        $principal = if ($logonType -eq "ServiceAccount") {
-            New-ScheduledTaskPrincipal -UserId $runAsUser -LogonType ServiceAccount -RunLevel Highest
-        } else {
-            New-ScheduledTaskPrincipal -UserId $runAsUser -LogonType Interactive -RunLevel Highest
-        }
-
         $settings = New-ScheduledTaskSettingsSet `
             -AllowStartIfOnBatteries `
             -DontStopIfGoingOnBatteries `
             -MultipleInstances IgnoreNew `
             -Hidden
 
-        Register-ScheduledTask `
-            -TaskName $taskName `
-            -Action $action `
-            -Trigger $trigger `
-            -Principal $principal `
-            -Settings $settings `
-            -Force | Out-Null
+        if ($runAsUser -match '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$')
+        {
+            $principal = New-ScheduledTaskPrincipal -UserId $runAsUser -LogonType ServiceAccount -RunLevel Highest
+            Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+        }
+        else
+        {
+            # When running as current/interactive user without needing hardcoded password
+            Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+        }
 
         $taskCreated = $true
     }
     catch
     {
         $createError = $_.ToString()
-        # Fallback to schtasks.exe with -WindowStyle Hidden
-        $trString = "powershell.exe -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$targetScript\`""
-        $createCmd = "schtasks /Create /TN `"$taskName`" /SC MINUTE /MO $repeatMinutes /TR `"$trString`" /RU `"$runAsUser`" /RL HIGHEST /F"
+        # Fallback to schtasks.exe
+        $userArg = if ($runAsUser -match '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') { "/RU `"$runAsUser`" /RL HIGHEST" } else { "" }
+        $trString = 'powershell.exe -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $safeScriptPath + '"'
+        $createCmd = "schtasks /Create /TN `"$taskName`" /SC MINUTE /MO $repeatMinutes /TR `"$trString`" $userArg /F"
         $createResult = cmd.exe /c $createCmd 2>&1
         if ($LASTEXITCODE -eq 0)
         {
