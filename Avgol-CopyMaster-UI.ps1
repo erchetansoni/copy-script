@@ -82,6 +82,37 @@ if (Test-Path -LiteralPath $secModule)
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
+        <!-- Dark ComboBox Style & Item Style for Dark Mode Visibility -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#1c1c24"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+            <Setter Property="BorderBrush" Value="#4e4e63"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#1c1c24"/>
+            <Setter Property="Foreground" Value="#f0f0f5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#0969da"/>
+                    <Setter Property="Foreground" Value="#ffffff"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1f3a5f"/>
+                    <Setter Property="Foreground" Value="#58a6ff"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Button Base -->
         <Style x:Key="BaseButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
@@ -172,7 +203,7 @@ if (Test-Path -LiteralPath $secModule)
                             <TextBlock Grid.Column="0" Text="1. PROTOCOL &amp; ENDPOINT AUTHENTICATION" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                 <TextBlock Text="Protocol:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox x:Name="cmbProtocol" Width="140" Height="28" Background="#121216" Foreground="#ffffff">
+                                <ComboBox x:Name="cmbProtocol" Width="140" Height="28">
                                     <ComboBoxItem Content="SMB" IsSelected="True"/>
                                     <ComboBoxItem Content="SFTP"/>
                                     <ComboBoxItem Content="SCP"/>
