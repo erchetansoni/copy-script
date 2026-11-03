@@ -2686,11 +2686,59 @@ $btnDeployAndCreateTask.Add_Click({
     # Delete existing task if present
     cmd.exe /c "schtasks /Delete /TN `"$taskName`" /F" *> $null
 
-    # Create new task
-    $createCmd = "schtasks /Create /TN `"$taskName`" /SC MINUTE /MO $repeatMinutes /TR `"powershell.exe -NoProfile -ExecutionPolicy Bypass -File \`"$targetScript\`"`" /RU `"$runAsUser`" /RL HIGHEST /F"
-    $createResult = cmd.exe /c $createCmd 2>&1
+    # Create new task using PowerShell ScheduledTasks cmdlets with Hidden Window and non-interactive background execution
+    $taskCreated = $false
+    $createError = ""
 
-    if ($LASTEXITCODE -eq 0)
+    try
+    {
+        $action = New-ScheduledTaskAction `
+            -Execute "powershell.exe" `
+            -Argument "-NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$targetScript`""
+
+        $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $repeatMinutes)
+        
+        $logonType = if ($runAsUser -match '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') { "ServiceAccount" } else { "Password" }
+        $principal = if ($logonType -eq "ServiceAccount") {
+            New-ScheduledTaskPrincipal -UserId $runAsUser -LogonType ServiceAccount -RunLevel Highest
+        } else {
+            New-ScheduledTaskPrincipal -UserId $runAsUser -LogonType Interactive -RunLevel Highest
+        }
+
+        $settings = New-ScheduledTaskSettingsSet `
+            -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries `
+            -MultipleInstances IgnoreNew `
+            -Hidden
+
+        Register-ScheduledTask `
+            -TaskName $taskName `
+            -Action $action `
+            -Trigger $trigger `
+            -Principal $principal `
+            -Settings $settings `
+            -Force | Out-Null
+
+        $taskCreated = $true
+    }
+    catch
+    {
+        $createError = $_.ToString()
+        # Fallback to schtasks.exe with -WindowStyle Hidden
+        $trString = "powershell.exe -NonInteractive -NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$targetScript\`""
+        $createCmd = "schtasks /Create /TN `"$taskName`" /SC MINUTE /MO $repeatMinutes /TR `"$trString`" /RU `"$runAsUser`" /RL HIGHEST /F"
+        $createResult = cmd.exe /c $createCmd 2>&1
+        if ($LASTEXITCODE -eq 0)
+        {
+            $taskCreated = $true
+        }
+        else
+        {
+            $createError += "`n$createResult"
+        }
+    }
+
+    if ($taskCreated)
     {
         Write-ConsoleLog "SUCCESS: Windows Scheduled Task '$taskName' created successfully!" "SUCCESS"
         Write-ConsoleLog "  - Script Location : $targetScript" "SUCCESS"
@@ -2707,11 +2755,11 @@ $btnDeployAndCreateTask.Add_Click({
     else
     {
         Write-ConsoleLog "ERROR: Failed to create Scheduled Task." "ERROR"
-        Write-ConsoleLog "Details: $createResult" "ERROR"
+        Write-ConsoleLog "Details: $createError" "ERROR"
         Write-ConsoleLog "Please ensure you run this application as Administrator!" "WARN"
 
         [System.Windows.MessageBox]::Show(
-            "Failed to create Scheduled Task:`n$createResult`n`nPlease ensure this tool is run with Administrator privileges.",
+            "Failed to create Scheduled Task:`n$createError`n`nPlease ensure this tool is run with Administrator privileges.",
             "Task Creation Error",
             [System.Windows.MessageBoxButton]::OK,
             [System.Windows.MessageBoxImage]::Error
