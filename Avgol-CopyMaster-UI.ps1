@@ -3,9 +3,10 @@
 AVGOL COPY MASTER - REPLICATION CONFIGURATOR & TASK INSTALLER (GUI)
 ====================================================================================================
 Description:
-A modern, standalone Windows WPF GUI to configure multi-folder SMB replication,
-test network credentials, generate production-ready Robocopy scripts, and
-create Windows Scheduled Tasks in a single click.
+A modern, standalone Windows WPF GUI to configure multi-folder, multi-protocol replication
+(SMB, SFTP, SCP, FTPS, FTP, WebDAV), test network credentials and ports, generate SSH keys &
+TLS/mTLS certificates, inspect remote server firewall/authorized_keys instructions, generate
+production-ready scripts, and create Windows Scheduled Tasks in a single click.
 
 100% Air-Gap Compatible: Zero internet or third-party dependencies required.
 ====================================================================================================
@@ -13,13 +14,21 @@ create Windows Scheduled Tasks in a single click.
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
 
+# Include Security & Cryptography Engine
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+$secModule = [System.IO.Path]::Combine($scriptDir, "Avgol-SecurityProtocols.ps1")
+if (Test-Path -LiteralPath $secModule)
+{
+    . $secModule
+}
+
 [xml]$xaml = @"
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Avgol Copy Master"
-    Width="940" Height="780"
-    MinWidth="820" MinHeight="660"
+    Title="Avgol Copy Master - Multi-Protocol Replication Suite"
+    Width="1020" Height="860"
+    MinWidth="880" MinHeight="700"
     WindowStartupLocation="CenterScreen"
     Background="#18181f"
     Foreground="#f0f0f5"
@@ -109,6 +118,12 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
             <Setter Property="Padding" Value="8,3"/>
             <Setter Property="FontSize" Value="10"/>
         </Style>
+
+        <!-- Purple Security Button -->
+        <Style x:Key="SecurityButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="Background" Value="#6e40c9"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="16">
@@ -127,43 +142,77 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
                 <TextBlock Text="Avgol Copy Master" FontSize="18" FontWeight="Bold" Foreground="#ffffff"/>
-                <TextBlock Text="Configure multi-folder Robocopy synchronization and Windows Task Scheduler" FontSize="11" Foreground="#8b949e" Margin="0,2,0,0"/>
+                <TextBlock Text="Industrial Multi-Folder Replication Suite (SMB, SFTP, SCP, FTPS, FTP, WebDAV)" FontSize="11" Foreground="#8b949e" Margin="0,2,0,0"/>
             </StackPanel>
-            <Button x:Name="btnLoadConfig" Grid.Column="1" Content="Reload From Local Script" Style="{StaticResource SecondaryButton}" Height="30" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="btnShowServerGuide" Content="Remote Server Setup &amp; Firewall Guide" Style="{StaticResource SecurityButton}" Height="30" Margin="0,0,8,0"/>
+                <Button x:Name="btnLoadConfig" Content="Reload From Local Script" Style="{StaticResource SecondaryButton}" Height="30" VerticalAlignment="Center"/>
+            </StackPanel>
         </Grid>
 
         <!-- Scrollable Cards -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
             <StackPanel>
-                <!-- Card 1: SMB Authentication -->
+                <!-- Card 1: Protocol & Authentication -->
                 <Border Style="{StaticResource CardBorder}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Text="1. SOURCE SMB AUTHENTICATION" Style="{StaticResource SectionHeader}"/>
-
-                        <Grid Grid.Row="1">
+                        <!-- Protocol Selection Bar -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="2*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="1.4*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="1. PROTOCOL &amp; ENDPOINT AUTHENTICATION" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <TextBlock Text="Protocol:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbProtocol" Width="140" Height="28" Background="#121216" Foreground="#ffffff">
+                                    <ComboBoxItem Content="SMB" IsSelected="True"/>
+                                    <ComboBoxItem Content="SFTP"/>
+                                    <ComboBoxItem Content="SCP"/>
+                                    <ComboBoxItem Content="FTPS"/>
+                                    <ComboBoxItem Content="FTP"/>
+                                    <ComboBoxItem Content="WebDAV"/>
+                                </ComboBox>
+                                <TextBlock Text="Port:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                                <TextBox x:Name="txtPort" Width="55" Height="28" Text="445" HorizontalContentAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Host, Username, Password, Connection Test -->
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.2*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Username -->
+                            <!-- Remote Host / Server IP -->
                             <StackPanel Grid.Column="0">
+                                <TextBlock Text="Remote Host / Server IP" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtHost" Height="30" Text="10.91.13.204"/>
+                            </StackPanel>
+
+                            <!-- Username -->
+                            <StackPanel Grid.Column="2">
                                 <TextBlock Text="Username (e.g. 10.91.13.204\admin)" Style="{StaticResource FieldLabel}"/>
                                 <TextBox x:Name="txtUsername" Height="30" Text="10.91.13.204\admin"/>
                             </StackPanel>
 
                             <!-- Password -->
-                            <StackPanel Grid.Column="2">
+                            <StackPanel Grid.Column="4">
                                 <Grid>
-                                    <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock Text="Password / Secret" Style="{StaticResource FieldLabel}"/>
                                     <CheckBox x:Name="chkShowPassword" Content="Show" HorizontalAlignment="Right" Foreground="#8b949e" FontSize="10"/>
                                 </Grid>
                                 <Grid>
@@ -172,12 +221,49 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Test SMB Button -->
-                            <StackPanel Grid.Column="4">
-                                <TextBlock Text="Connectivity" Style="{StaticResource FieldLabel}"/>
-                                <Button x:Name="btnTestSmb" Content="Test SMB Connection" Style="{StaticResource SecondaryButton}" Height="30"/>
+                            <!-- Test Connection Button -->
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Text="Connectivity Check" Style="{StaticResource FieldLabel}"/>
+                                <Button x:Name="btnTestSmb" Content="Test Connection" Style="{StaticResource SecondaryButton}" Height="30"/>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Dynamic Security Panel: SSH Keys / TLS Certificates -->
+                        <StackPanel Grid.Row="2" x:Name="pnlSecurityOptions" Margin="0,4,0,0">
+                            <!-- SSH / SFTP / SCP Key Panel -->
+                            <Border x:Name="pnlSshKeyBox" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="SSH Private Key:" Foreground="#7ee787" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBox x:Name="txtSshKeyPath" Grid.Column="1" Height="28" Text="" VerticalAlignment="Center"/>
+                                    <Button x:Name="btnBrowseSshKey" Grid.Column="2" Content="Browse..." Width="70" Height="28" Style="{StaticResource SecondaryButton}" Margin="6,0,0,0"/>
+                                    <Button x:Name="btnManageSshKeys" Grid.Column="4" Content="SSH Key Wizard (Paste / Generate)" Style="{StaticResource SecurityButton}" Height="28"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- TLS / FTPS / WebDAV Certificate Panel -->
+                            <Border x:Name="pnlTlsCertBox" Background="#1f1a28" BorderBrush="#4f3869" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="TLS / PFX Cert:" Foreground="#d2a8ff" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBox x:Name="txtTlsPfxPath" Grid.Column="1" Height="28" Text="" VerticalAlignment="Center"/>
+                                    <Button x:Name="btnBrowseTlsPfx" Grid.Column="2" Content="Browse..." Width="70" Height="28" Style="{StaticResource SecondaryButton}" Margin="6,0,0,0"/>
+                                    <Button x:Name="btnManageTlsCert" Grid.Column="4" Content="TLS Cert Wizard (Paste / Generate)" Style="{StaticResource SecurityButton}" Height="28"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -185,7 +271,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
-                            <TextBlock Text="2. FOLDER MAPPINGS (SOURCE UNC -> LOCAL DESTINATION)" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
+                            <TextBlock Text="2. FOLDER MAPPINGS (REMOTE SOURCE -> LOCAL DESTINATION)" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="lblMappingCount" Text="0 Mappings" Foreground="#8b949e" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
@@ -219,7 +305,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="100"/>
-                                <DataGridTextColumn Header="Source (UNC Path)" Binding="{Binding Source}" Width="2*"/>
+                                <DataGridTextColumn Header="Source (UNC / Remote Path)" Binding="{Binding Source}" Width="2*"/>
                                 <DataGridTextColumn Header="Destination (Local Path)" Binding="{Binding Destination}" Width="2*"/>
                                 <DataGridTextColumn Header="File Types" Binding="{Binding FileTypes}" Width="90"/>
                             </DataGrid.Columns>
@@ -256,7 +342,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Source UNC Path" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock Text="Source Path (UNC or Remote)" Style="{StaticResource FieldLabel}"/>
                                 <TextBox x:Name="txtMapSource" Height="28" Text="\\10.91.13.204\qw\Test1"/>
                             </StackPanel>
 
@@ -502,12 +588,16 @@ $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
 # Auto-bind named controls
 $namedElements = @(
-    "btnLoadConfig", "txtUsername", "chkShowPassword", "txtPassword", "txtPasswordPlain",
-    "btnTestSmb", "lblMappingCount", "dgMappings", "btnRemoveSelected", "btnClearAll",
-    "txtMapName", "txtMapSource", "txtMapDest", "btnBrowseDest", "txtMapTypes",
-    "btnAddMapping", "chkEnableSourceDelete", "pnlSourceDeleteOptions", "txtSourceDeleteDays",
-    "chkEnableDestArchive", "pnlDestArchiveOptions", "chkEnableDestDelete", "pnlDestDeleteOptions", "txtDestDeleteMonths",
-    "txtDeployFolder", "btnBrowseDeploy", "txtScriptFileName",
+    "btnLoadConfig", "btnShowServerGuide", "cmbProtocol", "txtPort", "txtHost",
+    "txtUsername", "chkShowPassword", "txtPassword", "txtPasswordPlain",
+    "btnTestSmb", "pnlSecurityOptions", "pnlSshKeyBox", "txtSshKeyPath",
+    "btnBrowseSshKey", "btnManageSshKeys", "pnlTlsCertBox", "txtTlsPfxPath",
+    "btnBrowseTlsPfx", "btnManageTlsCert", "lblMappingCount", "dgMappings",
+    "btnRemoveSelected", "btnClearAll", "txtMapName", "txtMapSource", "txtMapDest",
+    "btnBrowseDest", "txtMapTypes", "btnAddMapping", "chkEnableSourceDelete",
+    "pnlSourceDeleteOptions", "txtSourceDeleteDays", "chkEnableDestArchive",
+    "pnlDestArchiveOptions", "chkEnableDestDelete", "pnlDestDeleteOptions",
+    "txtDestDeleteMonths", "txtDeployFolder", "btnBrowseDeploy", "txtScriptFileName",
     "txtTaskName", "txtRepeatMinutes", "txtLogFolder", "btnBrowseLog",
     "txtRunAsUser", "txtMaxLogMB", "txtRetentionDays", "btnSaveScriptOnly",
     "btnRunNow", "btnDeployAndCreateTask", "txtConsole"
@@ -517,6 +607,13 @@ foreach ($name in $namedElements)
 {
     Set-Variable -Name $name -Value ($window.FindName($name))
 }
+
+# State variables for SSH & TLS
+$script:CurrentSshPublicKey  = ""
+$script:CurrentSshPrivateKey = ""
+$script:CurrentTlsCertThumb  = ""
+$script:CurrentTlsCommonName = "avgol-copymaster.local"
+$script:CurrentTlsPfxPass    = "AvgolSecurePassword123!"
 
 # Mapping ObservableCollection for WPF DataGrid Binding
 $script:MappingsCollection = [System.Collections.ObjectModel.ObservableCollection[PSCustomObject]]::new()
@@ -541,6 +638,46 @@ function Write-ConsoleLog
         $txtConsole.ScrollToEnd()
     })
 }
+
+# ====================================================================
+# PROTOCOL SELECTOR LOGIC
+# ====================================================================
+
+function Update-ProtocolUI
+{
+    $proto = $cmbProtocol.Text
+    if (-not $proto)
+    {
+        $proto = ($cmbProtocol.SelectedItem.Content).ToString()
+    }
+
+    $meta = $script:SupportedProtocols[$proto]
+    if ($meta)
+    {
+        $txtPort.Text = "$($meta.DefaultPort)"
+        Write-ConsoleLog "Protocol selected: $proto (Default Port: $($meta.DefaultPort))" "INFO"
+
+        if ($meta.RequiresSSH)
+        {
+            $pnlSshKeyBox.Visibility = [System.Windows.Visibility]::Visible
+            $pnlTlsCertBox.Visibility = [System.Windows.Visibility]::Collapsed
+        }
+        elseif ($meta.RequiresTLS)
+        {
+            $pnlSshKeyBox.Visibility = [System.Windows.Visibility]::Collapsed
+            $pnlTlsCertBox.Visibility = [System.Windows.Visibility]::Visible
+        }
+        else
+        {
+            $pnlSshKeyBox.Visibility = [System.Windows.Visibility]::Collapsed
+            $pnlTlsCertBox.Visibility = [System.Windows.Visibility]::Collapsed
+        }
+    }
+}
+
+$cmbProtocol.Add_SelectionChanged({
+    Update-ProtocolUI
+})
 
 # ====================================================================
 # PASSWORD VISIBILITY TOGGLE
@@ -594,6 +731,19 @@ function Show-FolderBrowser([string]$initialPath)
     return $null
 }
 
+function Show-FileBrowser([string]$filter = "All files (*.*)|*.*")
+{
+    $dialog = [System.Windows.Forms.OpenFileDialog]::new()
+    $dialog.Filter = $filter
+    $dialog.CheckFileExists = $true
+    $result = $dialog.ShowDialog()
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK)
+    {
+        return $dialog.FileName
+    }
+    return $null
+}
+
 $btnBrowseDest.Add_Click({
     $selected = Show-FolderBrowser $txtMapDest.Text
     if ($selected) { $txtMapDest.Text = $selected }
@@ -610,6 +760,417 @@ $btnBrowseDeploy.Add_Click({
 $btnBrowseLog.Add_Click({
     $selected = Show-FolderBrowser $txtLogFolder.Text
     if ($selected) { $txtLogFolder.Text = $selected }
+})
+
+$btnBrowseSshKey.Add_Click({
+    $selected = Show-FileBrowser "SSH Private Keys (*;*.pem;*.id_*)|*|All files (*.*)|*.*"
+    if ($selected)
+    {
+        $txtSshKeyPath.Text = $selected
+        if (Test-Path -LiteralPath "$selected.pub")
+        {
+            $script:CurrentSshPublicKey = (Get-Content -Raw -LiteralPath "$selected.pub").Trim()
+        }
+        Write-ConsoleLog "Loaded SSH Private Key file: $selected" "SUCCESS"
+    }
+})
+
+$btnBrowseTlsPfx.Add_Click({
+    $selected = Show-FileBrowser "PKCS#12 Certificates (*.pfx;*.p12)|*.pfx;*.p12|PEM Certificates (*.cer;*.crt)|*.cer;*.crt|All files (*.*)|*.*"
+    if ($selected)
+    {
+        $txtTlsPfxPath.Text = $selected
+        Write-ConsoleLog "Loaded TLS Certificate: $selected" "SUCCESS"
+    }
+})
+
+# ====================================================================
+# SSH KEY WIZARD MODAL (PASTE OR GENERATE)
+# ====================================================================
+
+function Show-SshKeyWizardDialog
+{
+    $dialog = [System.Windows.Window]::new()
+    $dialog.Title = "SSH Key Wizard - Avgol Copy Master"
+    $dialog.Width = 680
+    $dialog.Height = 560
+    $dialog.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+    $dialog.Owner = $window
+    $dialog.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#18181f")
+    $dialog.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#f0f0f5")
+    $dialog.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+
+    $root = [System.Windows.Controls.Grid]::new()
+    $root.Margin = [System.Windows.Thickness]::new(14)
+    
+    $r0 = [System.Windows.Controls.RowDefinition]::new(); $r0.Height = [System.Windows.GridLength]::Auto
+    $r1 = [System.Windows.Controls.RowDefinition]::new(); $r1.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $r2 = [System.Windows.Controls.RowDefinition]::new(); $r2.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $r3 = [System.Windows.Controls.RowDefinition]::new(); $r3.Height = [System.Windows.GridLength]::Auto
+    $root.RowDefinitions.Add($r0); $root.RowDefinitions.Add($r1); $root.RowDefinitions.Add($r2); $root.RowDefinitions.Add($r3)
+
+    # Header
+    $hdr = [System.Windows.Controls.StackPanel]::new()
+    $t1 = [System.Windows.Controls.TextBlock]::new(); $t1.Text = "SSH Key Pair Management"; $t1.FontSize = 16; $t1.FontWeight = [System.Windows.FontWeights]::Bold; $t1.Foreground = [System.Windows.Media.Brushes]::White
+    $t2 = [System.Windows.Controls.TextBlock]::new(); $t2.Text = "Paste your existing SSH keypair below, or click 'Generate New Key Pair' to auto-generate an ed25519 / RSA key."
+    $t2.FontSize = 11; $t2.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8b949e"); $t2.Margin = [System.Windows.Thickness]::new(0,2,0,10)
+    $hdr.Children.Add($t1); $hdr.Children.Add($t2)
+    [System.Windows.Controls.Grid]::SetRow($hdr, 0)
+    $root.Children.Add($hdr)
+
+    # Box 1: Private Key
+    $b1 = [System.Windows.Controls.GroupBox]::new()
+    $b1.Header = "SSH Private Key (Client Machine)"
+    $b1.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#58a6ff")
+    $b1.Margin = [System.Windows.Thickness]::new(0,0,0,8)
+    $txtPriv = [System.Windows.Controls.TextBox]::new()
+    $txtPriv.AcceptsReturn = $true; $txtPriv.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+    $txtPriv.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#121216")
+    $txtPriv.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffffff")
+    $txtPriv.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas"); $txtPriv.FontSize = 10
+    $b1.Content = $txtPriv
+    [System.Windows.Controls.Grid]::SetRow($b1, 1)
+    $root.Children.Add($b1)
+
+    # Box 2: Public Key
+    $b2 = [System.Windows.Controls.GroupBox]::new()
+    $b2.Header = "SSH Public Key (Deploy to Remote ~/.ssh/authorized_keys)"
+    $b2.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ee787")
+    $b2.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+    $txtPub = [System.Windows.Controls.TextBox]::new()
+    $txtPub.AcceptsReturn = $true; $txtPub.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+    $txtPub.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#121216")
+    $txtPub.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffffff")
+    $txtPub.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas"); $txtPub.FontSize = 10
+    $b2.Content = $txtPub
+    [System.Windows.Controls.Grid]::SetRow($b2, 2)
+    $root.Children.Add($b2)
+
+    # Load existing if available
+    if ($txtSshKeyPath.Text -and (Test-Path -LiteralPath $txtSshKeyPath.Text))
+    {
+        $txtPriv.Text = Get-Content -Raw -LiteralPath $txtSshKeyPath.Text
+    }
+    if ($script:CurrentSshPublicKey)
+    {
+        $txtPub.Text = $script:CurrentSshPublicKey
+    }
+
+    # Footer Buttons
+    $btnBar = [System.Windows.Controls.Grid]::new()
+    $c0 = [System.Windows.Controls.ColumnDefinition]::new(); $c0.Width = [System.Windows.GridLength]::Auto
+    $c1 = [System.Windows.Controls.ColumnDefinition]::new(); $c1.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $c2 = [System.Windows.Controls.ColumnDefinition]::new(); $c2.Width = [System.Windows.GridLength]::Auto
+    $btnBar.ColumnDefinitions.Add($c0); $btnBar.ColumnDefinitions.Add($c1); $btnBar.ColumnDefinitions.Add($c2)
+
+    $btnGen = [System.Windows.Controls.Button]::new(); $btnGen.Content = "+ Generate New ed25519 Key Pair"; $btnGen.Height = 32; $btnGen.Padding = [System.Windows.Thickness]::new(12,4,12,4)
+    $btnGen.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636"); $btnGen.Foreground = [System.Windows.Media.Brushes]::White; $btnGen.FontWeight = [System.Windows.FontWeights]::SemiBold
+    [System.Windows.Controls.Grid]::SetColumn($btnGen, 0); $btnBar.Children.Add($btnGen)
+
+    $rightPnl = [System.Windows.Controls.StackPanel]::new(); $rightPnl.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $btnCopyPub = [System.Windows.Controls.Button]::new(); $btnCopyPub.Content = "Copy Public Key"; $btnCopyPub.Height = 32; $btnCopyPub.Padding = [System.Windows.Thickness]::new(10,4,10,4); $btnCopyPub.Margin = [System.Windows.Thickness]::new(0,0,8,0)
+    $btnCopyPub.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2d2d3a"); $btnCopyPub.Foreground = [System.Windows.Media.Brushes]::White
+    $btnSave = [System.Windows.Controls.Button]::new(); $btnSave.Content = "Save & Apply Keys"; $btnSave.Height = 32; $btnSave.Padding = [System.Windows.Thickness]::new(14,4,14,4)
+    $btnSave.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0969da"); $btnSave.Foreground = [System.Windows.Media.Brushes]::White; $btnSave.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $rightPnl.Children.Add($btnCopyPub); $rightPnl.Children.Add($btnSave)
+    [System.Windows.Controls.Grid]::SetColumn($rightPnl, 2); $btnBar.Children.Add($rightPnl)
+
+    [System.Windows.Controls.Grid]::SetRow($btnBar, 3)
+    $root.Children.Add($btnBar)
+
+    # Event handlers
+    $btnGen.Add_Click({
+        $res = New-AvgolSSHKeyPair -KeyType "ed25519"
+        if ($res.Success)
+        {
+            $txtPriv.Text = $res.PrivateKeyContent
+            $txtPub.Text = $res.PublicKeyContent
+            $script:generatedKeyPath = $res.PrivateKeyPath
+            [System.Windows.MessageBox]::Show("New ed25519 SSH Key Pair generated successfully!`n`nPrivate Key Saved to:`n$($res.PrivateKeyPath)`n`nPublic Key Saved to:`n$($res.PublicKeyPath)", "SSH Keys Generated", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        }
+        else
+        {
+            [System.Windows.MessageBox]::Show("Failed to generate SSH key: $($res.Error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        }
+    })
+
+    $btnCopyPub.Add_Click({
+        if ($txtPub.Text)
+        {
+            [System.Windows.Clipboard]::SetText($txtPub.Text.Trim())
+            [System.Windows.MessageBox]::Show("Public Key copied to clipboard! Paste it into the remote server's ~/.ssh/authorized_keys file.", "Copied", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        }
+    })
+
+    $btnSave.Add_Click({
+        $privText = $txtPriv.Text.Trim()
+        $pubText  = $txtPub.Text.Trim()
+
+        if ([string]::IsNullOrWhiteSpace($privText))
+        {
+            [System.Windows.MessageBox]::Show("Private key cannot be empty. Please paste or generate one.", "Validation Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            return
+        }
+
+        # Save private key to user .ssh if not already a file
+        $targetDir = "$env:USERPROFILE\.ssh"
+        if (!(Test-Path -LiteralPath $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+
+        $keyFile = [System.IO.Path]::Combine($targetDir, "id_avgol_custom")
+        [System.IO.File]::WriteAllText($keyFile, $privText, [System.Text.Encoding]::ASCII)
+        if ($pubText)
+        {
+            [System.IO.File]::WriteAllText("$keyFile.pub", $pubText, [System.Text.Encoding]::ASCII)
+            $script:CurrentSshPublicKey = $pubText
+        }
+
+        $txtSshKeyPath.Text = $keyFile
+        Write-ConsoleLog "Applied SSH key: $keyFile" "SUCCESS"
+        $dialog.DialogResult = $true
+        $dialog.Close()
+    })
+
+    $dialog.Content = $root
+    $dialog.ShowDialog() | Out-Null
+}
+
+$btnManageSshKeys.Add_Click({
+    Show-SshKeyWizardDialog
+})
+
+# ====================================================================
+# TLS / X.509 CERTIFICATE WIZARD MODAL
+# ====================================================================
+
+function Show-TlsCertWizardDialog
+{
+    $dialog = [System.Windows.Window]::new()
+    $dialog.Title = "TLS / mTLS Certificate Wizard - Avgol Copy Master"
+    $dialog.Width = 720
+    $dialog.Height = 580
+    $dialog.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+    $dialog.Owner = $window
+    $dialog.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#18181f")
+    $dialog.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#f0f0f5")
+    $dialog.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+
+    $root = [System.Windows.Controls.Grid]::new()
+    $root.Margin = [System.Windows.Thickness]::new(14)
+
+    $r0 = [System.Windows.Controls.RowDefinition]::new(); $r0.Height = [System.Windows.GridLength]::Auto
+    $r1 = [System.Windows.Controls.RowDefinition]::new(); $r1.Height = [System.Windows.GridLength]::Auto
+    $r2 = [System.Windows.Controls.RowDefinition]::new(); $r2.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $r3 = [System.Windows.Controls.RowDefinition]::new(); $r3.Height = [System.Windows.GridLength]::Auto
+    $root.RowDefinitions.Add($r0); $root.RowDefinitions.Add($r1); $root.RowDefinitions.Add($r2); $root.RowDefinitions.Add($r3)
+
+    # Header
+    $hdr = [System.Windows.Controls.StackPanel]::new()
+    $t1 = [System.Windows.Controls.TextBlock]::new(); $t1.Text = "TLS / mTLS Certificate & Security Setup"; $t1.FontSize = 16; $t1.FontWeight = [System.Windows.FontWeights]::Bold; $t1.Foreground = [System.Windows.Media.Brushes]::White
+    $t2 = [System.Windows.Controls.TextBlock]::new(); $t2.Text = "Generate self-signed X.509 certificates (4096-bit RSA) or configure existing PFX credentials for FTPS / WebDAV."
+    $t2.FontSize = 11; $t2.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8b949e"); $t2.Margin = [System.Windows.Thickness]::new(0,2,0,10)
+    $hdr.Children.Add($t1); $hdr.Children.Add($t2)
+    [System.Windows.Controls.Grid]::SetRow($hdr, 0)
+    $root.Children.Add($hdr)
+
+    # Inputs: Common Name & PFX Password
+    $gInputs = [System.Windows.Controls.Grid]::new(); $gInputs.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+    $ci0 = [System.Windows.Controls.ColumnDefinition]::new(); $ci0.Width = [System.Windows.GridLength]::new(2, [System.Windows.GridUnitType]::Star)
+    $ci1 = [System.Windows.Controls.ColumnDefinition]::new(); $ci1.Width = [System.Windows.GridLength]::new(10, [System.Windows.GridUnitType]::Pixel)
+    $ci2 = [System.Windows.Controls.ColumnDefinition]::new(); $ci2.Width = [System.Windows.GridLength]::new(1.5, [System.Windows.GridUnitType]::Star)
+    $gInputs.ColumnDefinitions.Add($ci0); $gInputs.ColumnDefinitions.Add($ci1); $gInputs.ColumnDefinitions.Add($ci2)
+
+    $spCn = [System.Windows.Controls.StackPanel]::new()
+    $lblCn = [System.Windows.Controls.TextBlock]::new(); $lblCn.Text = "Certificate Subject / Common Name (e.g. 10.91.13.204 or server.local)"; $lblCn.FontSize = 11; $lblCn.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b0b0c0")
+    $txtCn = [System.Windows.Controls.TextBox]::new(); $txtCn.Height = 28; $txtCn.Text = if ($txtHost.Text) { $txtHost.Text } else { "avgol-copymaster.local" }
+    $spCn.Children.Add($lblCn); $spCn.Children.Add($txtCn)
+    [System.Windows.Controls.Grid]::SetColumn($spCn, 0); $gInputs.Children.Add($spCn)
+
+    $spPw = [System.Windows.Controls.StackPanel]::new()
+    $lblPw = [System.Windows.Controls.TextBlock]::new(); $lblPw.Text = "PFX Export Password"; $lblPw.FontSize = 11; $lblPw.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b0b0c0")
+    $txtPfxPw = [System.Windows.Controls.TextBox]::new(); $txtPfxPw.Height = 28; $txtPfxPw.Text = "AvgolSecurePassword123!"
+    $spPw.Children.Add($lblPw); $spPw.Children.Add($txtPfxPw)
+    [System.Windows.Controls.Grid]::SetColumn($spPw, 2); $gInputs.Children.Add($spPw)
+
+    [System.Windows.Controls.Grid]::SetRow($gInputs, 1)
+    $root.Children.Add($gInputs)
+
+    # Details Box
+    $bCert = [System.Windows.Controls.GroupBox]::new()
+    $bCert.Header = "Generated Certificate Details & PEM Preview"
+    $bCert.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#d2a8ff")
+    $bCert.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+    $txtCertPreview = [System.Windows.Controls.TextBox]::new()
+    $txtCertPreview.AcceptsReturn = $true; $txtCertPreview.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+    $txtCertPreview.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#121216")
+    $txtCertPreview.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffffff")
+    $txtCertPreview.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas"); $txtCertPreview.FontSize = 10
+    $bCert.Content = $txtCertPreview
+    [System.Windows.Controls.Grid]::SetRow($bCert, 2)
+    $root.Children.Add($bCert)
+
+    # Footer Buttons
+    $btnBar = [System.Windows.Controls.Grid]::new()
+    $c0 = [System.Windows.Controls.ColumnDefinition]::new(); $c0.Width = [System.Windows.GridLength]::Auto
+    $c1 = [System.Windows.Controls.ColumnDefinition]::new(); $c1.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $c2 = [System.Windows.Controls.ColumnDefinition]::new(); $c2.Width = [System.Windows.GridLength]::Auto
+    $btnBar.ColumnDefinitions.Add($c0); $btnBar.ColumnDefinitions.Add($c1); $btnBar.ColumnDefinitions.Add($c2)
+
+    $btnGen = [System.Windows.Controls.Button]::new(); $btnGen.Content = "+ Generate Self-Signed Certificate"; $btnGen.Height = 32; $btnGen.Padding = [System.Windows.Thickness]::new(12,4,12,4)
+    $btnGen.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636"); $btnGen.Foreground = [System.Windows.Media.Brushes]::White; $btnGen.FontWeight = [System.Windows.FontWeights]::SemiBold
+    [System.Windows.Controls.Grid]::SetColumn($btnGen, 0); $btnBar.Children.Add($btnGen)
+
+    $rightPnl = [System.Windows.Controls.StackPanel]::new(); $rightPnl.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $btnCopyPem = [System.Windows.Controls.Button]::new(); $btnCopyPem.Content = "Copy Public PEM"; $btnCopyPem.Height = 32; $btnCopyPem.Padding = [System.Windows.Thickness]::new(10,4,10,4); $btnCopyPem.Margin = [System.Windows.Thickness]::new(0,0,8,0)
+    $btnCopyPem.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2d2d3a"); $btnCopyPem.Foreground = [System.Windows.Media.Brushes]::White
+    $btnApply = [System.Windows.Controls.Button]::new(); $btnApply.Content = "Apply Certificate"; $btnApply.Height = 32; $btnApply.Padding = [System.Windows.Thickness]::new(14,4,14,4)
+    $btnApply.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0969da"); $btnApply.Foreground = [System.Windows.Media.Brushes]::White; $btnApply.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $rightPnl.Children.Add($btnCopyPem); $rightPnl.Children.Add($btnApply)
+    [System.Windows.Controls.Grid]::SetColumn($rightPnl, 2); $btnBar.Children.Add($rightPnl)
+
+    [System.Windows.Controls.Grid]::SetRow($btnBar, 3)
+    $root.Children.Add($btnBar)
+
+    # Generated state
+    $script:generatedPfxPath = ""
+
+    $btnGen.Add_Click({
+        $cn = $txtCn.Text.Trim()
+        $pw = $txtPfxPw.Text.Trim()
+        if ([string]::IsNullOrWhiteSpace($cn)) { $cn = "avgol-copymaster.local" }
+
+        $res = New-AvgolSelfSignedTlsCert -CommonName $cn -PfxPassword $pw
+        if ($res.Success)
+        {
+            $script:generatedPfxPath     = $res.PfxPath
+            $script:CurrentTlsCertThumb  = $res.Thumbprint
+            $script:CurrentTlsCommonName = $res.CommonName
+            $script:CurrentTlsPfxPass    = $pw
+
+            $txtCertPreview.Text = "Thumbprint : $($res.Thumbprint)`r`nValid Until: $($res.NotAfter)`r`nPFX Path   : $($res.PfxPath)`r`nCER Path   : $($res.CerPath)`r`nPEM Path   : $($res.PemCertPath)`r`n`r`n--- PUBLIC CERTIFICATE PEM ---`r`n$($res.PublicCertPem)"
+            [System.Windows.MessageBox]::Show("Self-Signed TLS Certificate generated successfully!`n`nThumbprint: $($res.Thumbprint)`nPFX File: $($res.PfxPath)`nPassword: $pw", "Certificate Created", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        }
+        else
+        {
+            [System.Windows.MessageBox]::Show("Certificate Generation Failed: $($res.Error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        }
+    })
+
+    $btnCopyPem.Add_Click({
+        if ($txtCertPreview.Text)
+        {
+            [System.Windows.Clipboard]::SetText($txtCertPreview.Text)
+            [System.Windows.MessageBox]::Show("Certificate details and PEM copied to clipboard!", "Copied", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        }
+    })
+
+    $btnApply.Add_Click({
+        if ($script:generatedPfxPath)
+        {
+            $txtTlsPfxPath.Text = $script:generatedPfxPath
+            Write-ConsoleLog "Applied TLS PFX Certificate: $($script:generatedPfxPath) (Thumbprint: $($script:CurrentTlsCertThumb))" "SUCCESS"
+        }
+        $dialog.DialogResult = $true
+        $dialog.Close()
+    })
+
+    $dialog.Content = $root
+    $dialog.ShowDialog() | Out-Null
+}
+
+$btnManageTlsCert.Add_Click({
+    Show-TlsCertWizardDialog
+})
+
+# ====================================================================
+# REMOTE SERVER SETUP & FIREWALL GUIDE MODAL
+# ====================================================================
+
+function Show-RemoteServerGuideDialog
+{
+    $proto = $cmbProtocol.Text
+    if (-not $proto) { $proto = ($cmbProtocol.SelectedItem.Content).ToString() }
+    $port = 0
+    [int]::TryParse($txtPort.Text.Trim(), [ref]$port) | Out-Null
+    $hostName = $txtHost.Text.Trim()
+    $user = $txtUsername.Text.Trim()
+
+    $guide = Get-RemoteServerSetupGuide `
+        -Protocol $proto `
+        -RemoteHost $hostName `
+        -Port $port `
+        -RemoteUser $user `
+        -PublicKeyContent $script:CurrentSshPublicKey `
+        -CertThumbprint $script:CurrentTlsCertThumb `
+        -CertCommonName $script:CurrentTlsCommonName
+
+    $dialog = [System.Windows.Window]::new()
+    $dialog.Title = "Remote Server Security & Firewall Configuration Guide ($proto Port $port)"
+    $dialog.Width = 820
+    $dialog.Height = 620
+    $dialog.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+    $dialog.Owner = $window
+    $dialog.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#18181f")
+    $dialog.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#f0f0f5")
+    $dialog.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+
+    $root = [System.Windows.Controls.Grid]::new()
+    $root.Margin = [System.Windows.Thickness]::new(14)
+
+    $r0 = [System.Windows.Controls.RowDefinition]::new(); $r0.Height = [System.Windows.GridLength]::Auto
+    $r1 = [System.Windows.Controls.RowDefinition]::new(); $r1.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $r2 = [System.Windows.Controls.RowDefinition]::new(); $r2.Height = [System.Windows.GridLength]::Auto
+    $root.RowDefinitions.Add($r0); $root.RowDefinitions.Add($r1); $root.RowDefinitions.Add($r2)
+
+    # Header
+    $hdr = [System.Windows.Controls.StackPanel]::new()
+    $t1 = [System.Windows.Controls.TextBlock]::new(); $t1.Text = "Remote Server Deployment & Port Verification"; $t1.FontSize = 16; $t1.FontWeight = [System.Windows.FontWeights]::Bold; $t1.Foreground = [System.Windows.Media.Brushes]::White
+    $t2 = [System.Windows.Controls.TextBlock]::new(); $t2.Text = "Follow these instructions on the remote server ($hostName) to open ports, configure firewalls, and install keys/certs."
+    $t2.FontSize = 11; $t2.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8b949e"); $t2.Margin = [System.Windows.Thickness]::new(0,2,0,10)
+    $hdr.Children.Add($t1); $hdr.Children.Add($t2)
+    [System.Windows.Controls.Grid]::SetRow($hdr, 0)
+    $root.Children.Add($hdr)
+
+    # Guide Box
+    $txtGuide = [System.Windows.Controls.TextBox]::new()
+    $txtGuide.IsReadOnly = $true
+    $txtGuide.AcceptsReturn = $true
+    $txtGuide.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+    $txtGuide.HorizontalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+    $txtGuide.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#121216")
+    $txtGuide.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4ade80")
+    $txtGuide.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas")
+    $txtGuide.FontSize = 11
+    $txtGuide.Padding = [System.Windows.Thickness]::new(8)
+    $txtGuide.Text = $guide
+    [System.Windows.Controls.Grid]::SetRow($txtGuide, 1)
+    $root.Children.Add($txtGuide)
+
+    # Buttons
+    $pnlBtn = [System.Windows.Controls.StackPanel]::new(); $pnlBtn.Orientation = [System.Windows.Controls.Orientation]::Horizontal; $pnlBtn.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $pnlBtn.Margin = [System.Windows.Thickness]::new(0,10,0,0)
+
+    $btnCopyGuide = [System.Windows.Controls.Button]::new(); $btnCopyGuide.Content = "Copy Guide to Clipboard"; $btnCopyGuide.Height = 32; $btnCopyGuide.Padding = [System.Windows.Thickness]::new(14,4,14,4); $btnCopyGuide.Margin = [System.Windows.Thickness]::new(0,0,8,0)
+    $btnCopyGuide.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2d2d3a"); $btnCopyGuide.Foreground = [System.Windows.Media.Brushes]::White
+    $btnClose = [System.Windows.Controls.Button]::new(); $btnClose.Content = "Close"; $btnClose.Height = 32; $btnClose.Padding = [System.Windows.Thickness]::new(18,4,18,4)
+    $btnClose.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0969da"); $btnClose.Foreground = [System.Windows.Media.Brushes]::White
+
+    $btnCopyGuide.Add_Click({
+        [System.Windows.Clipboard]::SetText($guide)
+        [System.Windows.MessageBox]::Show("Guide copied to clipboard!", "Copied", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+    })
+
+    $btnClose.Add_Click({ $dialog.Close() })
+
+    $pnlBtn.Children.Add($btnCopyGuide); $pnlBtn.Children.Add($btnClose)
+    [System.Windows.Controls.Grid]::SetRow($pnlBtn, 2)
+    $root.Children.Add($pnlBtn)
+
+    $dialog.Content = $root
+    $dialog.ShowDialog() | Out-Null
+}
+
+$btnShowServerGuide.Add_Click({
+    Show-RemoteServerGuideDialog
 })
 
 # ====================================================================
@@ -728,8 +1289,8 @@ $btnAddMapping.Add_Click({
 
     if ([string]::IsNullOrWhiteSpace($src) -or [string]::IsNullOrWhiteSpace($dst))
     {
-        Write-ConsoleLog "Both Source UNC Path and Destination Path are required to add a mapping." "WARN"
-        [System.Windows.MessageBox]::Show("Please enter both Source UNC Path and Destination Local Path.", "Missing Information", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+        Write-ConsoleLog "Both Source Path and Destination Path are required to add a mapping." "WARN"
+        [System.Windows.MessageBox]::Show("Please enter both Source Path and Destination Local Path.", "Missing Information", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -791,70 +1352,50 @@ $btnClearAll.Add_Click({
 })
 
 # ====================================================================
-# TEST SMB CONNECTION
+# TEST PROTOCOL & PORT CONNECTION
 # ====================================================================
 
 $btnTestSmb.Add_Click({
+    $proto = $cmbProtocol.Text
+    if (-not $proto) { $proto = ($cmbProtocol.SelectedItem.Content).ToString() }
+
+    $port = 0
+    [int]::TryParse($txtPort.Text.Trim(), [ref]$port) | Out-Null
+    $hostName = $txtHost.Text.Trim()
     $username = $txtUsername.Text.Trim()
     $password = Get-CurrentPassword
+    $keyPath  = $txtSshKeyPath.Text.Trim()
 
-    if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password))
+    if ([string]::IsNullOrWhiteSpace($hostName))
     {
-        Write-ConsoleLog "Please provide both SMB Username and Password to test connection." "WARN"
+        Write-ConsoleLog "Remote Host / IP cannot be empty." "WARN"
         return
     }
 
-    # Collect distinct root shares from mappings or Source box
-    $sharesToTest = @()
-    foreach ($m in $script:MappingsCollection)
+    Write-ConsoleLog "Testing $proto connectivity to ${hostName}:${port}..." "INFO"
+
+    $testRes = Test-AvgolProtocolEndpoint `
+        -Protocol $proto `
+        -HostName $hostName `
+        -Port $port `
+        -Username $username `
+        -Password $password `
+        -PrivateKeyPath $keyPath
+
+    if ($testRes.PortOpen -and $testRes.AuthSuccess)
     {
-        if ($m.Source -and $m.Source.StartsWith("\\"))
-        {
-            $parts = $m.Source.TrimStart('\').Split('\')
-            if ($parts.Length -ge 2)
-            {
-                $root = "\\$($parts[0])\$($parts[1])"
-                if ($sharesToTest -notcontains $root) { $sharesToTest += $root }
-            }
-        }
+        Write-ConsoleLog "SUCCESS: $($testRes.Message)" "SUCCESS"
+        [System.Windows.MessageBox]::Show($testRes.Message, "Connection Successful", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
-
-    # If no mappings in table yet, test the one in the input box
-    if ($sharesToTest.Count -eq 0 -and $txtMapSource.Text.StartsWith("\\"))
+    elseif ($testRes.PortOpen)
     {
-        $parts = $txtMapSource.Text.TrimStart('\').Split('\')
-        if ($parts.Length -ge 2)
-        {
-            $sharesToTest += "\\$($parts[0])\$($parts[1])"
-        }
+        Write-ConsoleLog "PORT OPEN: $($testRes.Message)" "WARN"
+        [System.Windows.MessageBox]::Show($testRes.Message, "Port Open (Auth Pending)", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
     }
-
-    if ($sharesToTest.Count -eq 0)
+    else
     {
-        Write-ConsoleLog "No UNC shares (e.g. \\10.91.13.204\share) found to test. Please add a mapping first." "WARN"
-        return
-    }
-
-    Write-ConsoleLog "Starting SMB connectivity test with user '$username'..." "INFO"
-
-    foreach ($share in $sharesToTest)
-    {
-        Write-ConsoleLog "Testing authentication to: $share" "INFO"
-
-        cmd.exe /c "net use `"$share`" /delete /y" *> $null
-        $netOut = cmd.exe /c "net use `"$share`" /user:$username $password /persistent:no" 2>&1
-
-        Start-Sleep -Seconds 1
-
-        if (Test-Path -LiteralPath $share -ErrorAction SilentlyContinue)
-        {
-            Write-ConsoleLog "SUCCESS: Connected to share $share!" "SUCCESS"
-        }
-        else
-        {
-            Write-ConsoleLog "FAILED: Unable to access share $share." "ERROR"
-            if ($netOut) { Write-ConsoleLog "  net use error: $netOut" "ERROR" }
-        }
+        Write-ConsoleLog "FAILED: $($testRes.Message)" "ERROR"
+        [System.Windows.MessageBox]::Show($testRes.Message, "Connection Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
@@ -864,8 +1405,17 @@ $btnTestSmb.Add_Click({
 
 function Generate-RobocopyScriptContent
 {
+    $proto        = $cmbProtocol.Text
+    if (-not $proto) { $proto = ($cmbProtocol.SelectedItem.Content).ToString() }
+    $port         = [int]($txtPort.Text.Trim())
+    $hostName     = $txtHost.Text.Trim()
     $username     = $txtUsername.Text.Trim()
     $password     = Get-CurrentPassword
+    $sshKey       = $txtSshKeyPath.Text.Trim()
+    $tlsPfx       = $txtTlsPfxPath.Text.Trim()
+    $tlsPass      = $script:CurrentTlsPfxPass
+    $tlsThumb     = $script:CurrentTlsCertThumb
+
     $logFolder    = $txtLogFolder.Text.Trim()
     $maxLogMB     = [int]($txtMaxLogMB.Text.Trim())
     $retention    = [int]($txtRetentionDays.Text.Trim())
@@ -909,23 +1459,36 @@ function Generate-RobocopyScriptContent
     $template = @'
 <#
 ====================================================================================================
-AVGOL COPY MASTER - AUTO-GENERATED FILE REPLICATION
+AVGOL COPY MASTER - AUTO-GENERATED MULTI-PROTOCOL FILE REPLICATION
 ====================================================================================================
-Generated On: __GENERATED_TIMESTAMP__
-Configured Mappings: __MAPPING_COUNT__
-Log Directory: __LOG_FOLDER__
+Generated On        : __GENERATED_TIMESTAMP__
+Protocol            : __SOURCE_PROTOCOL__ (Port __SOURCE_PORT__)
+Remote Host         : __SOURCE_HOST__
+Configured Mappings : __MAPPING_COUNT__
+Log Directory       : __LOG_FOLDER__
 ====================================================================================================
 #>
 
 # ====================================================================
-# SOURCE SERVER AUTHENTICATION
+# PROTOCOL & AUTHENTICATION CONFIGURATION
 # ====================================================================
 
+$SourceProtocol      = "__SOURCE_PROTOCOL__"
+$SourcePort          = __SOURCE_PORT__
+$SourceHost          = "__SOURCE_HOST__"
 $SourceUsername      = "__SOURCE_USERNAME__"
 $SourcePassword      = "__SOURCE_PASSWORD__"
 
+# SSH / Key-Based Authentication (SFTP & SCP)
+$SshPrivateKeyPath   = "__SSH_KEY_PATH__"
+
+# TLS / Certificate Authentication (FTPS & WebDAV)
+$TlsCertThumbprint   = "__TLS_CERT_THUMB__"
+$TlsPfxPath          = "__TLS_PFX_PATH__"
+$TlsPfxPassword      = "__TLS_PFX_PASSWORD__"
+
 # ====================================================================
-# FOLDER MAPPINGS (SOURCE UNC -> LOCAL DESTINATION)
+# FOLDER MAPPINGS (REMOTE SOURCE -> LOCAL DESTINATION)
 # ====================================================================
 
 __FOLDER_MAPPINGS__
@@ -1081,7 +1644,7 @@ function Cleanup-OldLogs
 }
 
 # ====================================================================
-# CONNECT TO SOURCE SHARE
+# CONNECT TO SOURCE SHARE (SMB)
 # ====================================================================
 
 function Connect-SourceShare
@@ -1117,6 +1680,96 @@ function Connect-SourceShare
     catch
     {
         Write-Log "Connection Error for $UNCPath : $_"
+        return $false
+    }
+}
+
+# ====================================================================
+# SFTP / SCP REPLICATION ADAPTER
+# ====================================================================
+
+function Invoke-SshFileReplication
+{
+    param(
+        [Parameter(Mandatory = $true)][PSCustomObject]$Mapping,
+        [string]$Mode = "SFTP"
+    )
+
+    try
+    {
+        $DestPath = $Mapping.Destination.Trim().TrimEnd('\', '/')
+        if (!(Test-Path -LiteralPath $DestPath))
+        {
+            New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
+        }
+
+        $port = if ($SourcePort -gt 0) { $SourcePort } else { 22 }
+        $hostName = if ($SourceHost) { $SourceHost } else { "127.0.0.1" }
+        $user = if ($SourceUsername) { $SourceUsername } else { $env:USERNAME }
+        $remoteSrc = $Mapping.Source.Replace("\", "/")
+
+        $authArg = ""
+        if ($SshPrivateKeyPath -and (Test-Path -LiteralPath $SshPrivateKeyPath))
+        {
+            $authArg = "-i `"$SshPrivateKeyPath`""
+        }
+
+        Write-Log "[$($Mapping.Name)] Starting $Mode Transfer from ${user}@${hostName}:${remoteSrc} -> $DestPath"
+
+        if ($Mode -eq "SCP")
+        {
+            $scpCmd = Get-Command "scp.exe" -ErrorAction SilentlyContinue
+            if (-not $scpCmd)
+            {
+                Write-Log "[$($Mapping.Name)] ERROR: scp.exe not found on system."
+                return $false
+            }
+
+            $scpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -r `"${user}@${hostName}:${remoteSrc}/*`" `"$DestPath`""
+            $proc = Start-Process -FilePath "scp.exe" -ArgumentList $scpArgs -Wait -NoNewWindow -PassThru
+            if ($proc.ExitCode -eq 0)
+            {
+                Write-Log "[$($Mapping.Name)] SCP transfer completed successfully."
+                return $true
+            }
+            else
+            {
+                Write-Log "[$($Mapping.Name)] SCP transfer failed with exit code: $($proc.ExitCode)"
+                return $false
+            }
+        }
+        else
+        {
+            $sftpCmd = Get-Command "sftp.exe" -ErrorAction SilentlyContinue
+            if (-not $sftpCmd)
+            {
+                Write-Log "[$($Mapping.Name)] ERROR: sftp.exe not found on system."
+                return $false
+            }
+
+            $batchFile = [System.IO.Path]::GetTempFileName()
+            $batchContent = "cd `"$remoteSrc`"`nlcd `"$DestPath`"`nmget *`nbye`n"
+            [System.IO.File]::WriteAllText($batchFile, $batchContent, [System.Text.Encoding]::ASCII)
+
+            $sftpArgs = "-P $port -o StrictHostKeyChecking=no -o BatchMode=yes $authArg -b `"$batchFile`" ${user}@${hostName}"
+            $proc = Start-Process -FilePath "sftp.exe" -ArgumentList $sftpArgs -Wait -NoNewWindow -PassThru
+            Remove-Item -LiteralPath $batchFile -Force -ErrorAction SilentlyContinue
+
+            if ($proc.ExitCode -eq 0)
+            {
+                Write-Log "[$($Mapping.Name)] SFTP transfer completed successfully."
+                return $true
+            }
+            else
+            {
+                Write-Log "[$($Mapping.Name)] SFTP transfer exited with code: $($proc.ExitCode)"
+                return $false
+            }
+        }
+    }
+    catch
+    {
+        Write-Log "[$($Mapping.Name)] SSH transfer exception: $_"
         return $false
     }
 }
@@ -1246,6 +1899,24 @@ function Start-RobocopyCopy
 }
 
 # ====================================================================
+# UNIFIED REPLICATION DISPATCHER
+# ====================================================================
+
+function Start-UnifiedCopy
+{
+    param([Parameter(Mandatory = $true)][PSCustomObject]$Mapping)
+
+    if ($SourceProtocol -in @("SFTP", "SCP"))
+    {
+        return Invoke-SshFileReplication -Mapping $Mapping -Mode $SourceProtocol
+    }
+    else
+    {
+        return Start-RobocopyCopy -Mapping $Mapping
+    }
+}
+
+# ====================================================================
 # DESTINATION MONTHLY AUTO-ARCHIVE
 # ====================================================================
 
@@ -1266,7 +1937,6 @@ function Invoke-DestinationMonthlyArchive
             return
         }
 
-        # Any file modified prior to the 1st of current month belongs to previous month
         $now = Get-Date
         $currentMonthStart = [DateTime]::new($now.Year, $now.Month, 1, 0, 0, 0)
 
@@ -1471,49 +2141,52 @@ function Invoke-SourceCleanup
 
 function Invoke-Replication
 {
-    $rootShares = @()
-    $hasLocalSource = $false
-    foreach ($m in $FolderMappings)
+    if ($SourceProtocol -eq "SMB")
     {
-        if ($m.Enabled -and $m.Source)
+        $rootShares = @()
+        $hasLocalSource = $false
+        foreach ($m in $FolderMappings)
         {
-            if ($m.Source.StartsWith("\\"))
+            if ($m.Enabled -and $m.Source)
             {
-                $parts = $m.Source.TrimStart('\').Split('\')
-                if ($parts.Length -ge 2)
+                if ($m.Source.StartsWith("\\"))
                 {
-                    $root = "\\$($parts[0])\$($parts[1])"
-                    if ($rootShares -notcontains $root) { $rootShares += $root }
+                    $parts = $m.Source.TrimStart('\').Split('\')
+                    if ($parts.Length -ge 2)
+                    {
+                        $root = "\\$($parts[0])\$($parts[1])"
+                        if ($rootShares -notcontains $root) { $rootShares += $root }
+                    }
+                }
+                else
+                {
+                    $hasLocalSource = $true
                 }
             }
-            else
-            {
-                $hasLocalSource = $true
-            }
-        }
-    }
-
-    if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
-    {
-        Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings."
-        return
-    }
-
-    $connectionFailures = 0
-    if ($rootShares.Count -gt 0)
-    {
-        foreach ($share in $rootShares)
-        {
-            if (-not (Connect-SourceShare -SharePath $share))
-            {
-                $connectionFailures++
-            }
         }
 
-        if ($connectionFailures -eq $rootShares.Count)
+        if ($rootShares.Count -eq 0 -and -not $hasLocalSource)
         {
-            Write-Log "All source shares are unreachable. Skipping copy cycle."
+            Write-Log "ERROR: No remote SMB shares or valid source paths could be detected from `$FolderMappings."
             return
+        }
+
+        $connectionFailures = 0
+        if ($rootShares.Count -gt 0)
+        {
+            foreach ($share in $rootShares)
+            {
+                if (-not (Connect-SourceShare -SharePath $share))
+                {
+                    $connectionFailures++
+                }
+            }
+
+            if ($connectionFailures -eq $rootShares.Count)
+            {
+                Write-Log "All source shares are unreachable. Skipping copy cycle."
+                return
+            }
         }
     }
 
@@ -1531,7 +2204,7 @@ function Invoke-Replication
         }
 
         $psobj = [PSCustomObject]$mapping
-        $success = Start-RobocopyCopy -Mapping $psobj
+        $success = Start-UnifiedCopy -Mapping $psobj
         if ($success) { $successCount++ } else { $failureCount++ }
 
         # Post-Copy Lifecycle Actions:
@@ -1557,7 +2230,7 @@ function Invoke-Replication
         }
     }
 
-    Write-Log "Replication Cycle Finished: $successCount succeeded, $failureCount failed, $skippedCount skipped."
+    Write-Log "Replication Cycle Finished ($SourceProtocol): $successCount succeeded, $failureCount failed, $skippedCount skipped."
 }
 
 # ====================================================================
@@ -1578,8 +2251,15 @@ catch
     $rendered = $template
     $rendered = $rendered.Replace("__GENERATED_TIMESTAMP__", (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
     $rendered = $rendered.Replace("__MAPPING_COUNT__", "$($script:MappingsCollection.Count)")
+    $rendered = $rendered.Replace("__SOURCE_PROTOCOL__", $proto)
+    $rendered = $rendered.Replace("__SOURCE_PORT__", "$port")
+    $rendered = $rendered.Replace("__SOURCE_HOST__", $hostName)
     $rendered = $rendered.Replace("__SOURCE_USERNAME__", $username)
     $rendered = $rendered.Replace("__SOURCE_PASSWORD__", $password)
+    $rendered = $rendered.Replace("__SSH_KEY_PATH__", $sshKey)
+    $rendered = $rendered.Replace("__TLS_CERT_THUMB__", $tlsThumb)
+    $rendered = $rendered.Replace("__TLS_PFX_PATH__", $tlsPfx)
+    $rendered = $rendered.Replace("__TLS_PFX_PASSWORD__", $tlsPass)
     $rendered = $rendered.Replace("__FOLDER_MAPPINGS__", $mappingsCode)
     $rendered = $rendered.Replace("__LOG_FOLDER__", $logFolder)
     $rendered = $rendered.Replace("__MAX_LOG_MB__", "$maxLogMB")
@@ -1778,6 +2458,29 @@ function Load-LocalScriptConfig
         Write-ConsoleLog "Reading existing configuration from: $localScript" "INFO"
         $raw = Get-Content -Raw -LiteralPath $localScript
 
+        if ($raw -match '\$SourceProtocol\s*=\s*"([^"]+)"')
+        {
+            $loadedProto = $matches[1]
+            foreach ($item in $cmbProtocol.Items)
+            {
+                if ($item.Content -eq $loadedProto)
+                {
+                    $cmbProtocol.SelectedItem = $item
+                    break
+                }
+            }
+        }
+
+        if ($raw -match '\$SourcePort\s*=\s*(\d+)')
+        {
+            $txtPort.Text = $matches[1]
+        }
+
+        if ($raw -match '\$SourceHost\s*=\s*"([^"]+)"')
+        {
+            $txtHost.Text = $matches[1]
+        }
+
         if ($raw -match '\$SourceUsername\s*=\s*"([^"]+)"')
         {
             $txtUsername.Text = $matches[1]
@@ -1786,6 +2489,16 @@ function Load-LocalScriptConfig
         if ($raw -match '\$SourcePassword\s*=\s*"([^"]+)"')
         {
             Set-CurrentPassword $matches[1]
+        }
+
+        if ($raw -match '\$SshPrivateKeyPath\s*=\s*"([^"]+)"')
+        {
+            $txtSshKeyPath.Text = $matches[1]
+        }
+
+        if ($raw -match '\$TlsPfxPath\s*=\s*"([^"]+)"')
+        {
+            $txtTlsPfxPath.Text = $matches[1]
         }
 
         if ($raw -match '\$LogFolder\s*=\s*"([^"]+)"')
@@ -1819,21 +2532,20 @@ function Load-LocalScriptConfig
         }
 
         # Parse Folder Mappings block in an isolated runspace
-        if ($raw -match '(?ms)(# ====================================================================\r?\n# SOURCE SERVER AUTHENTICATION.+?# ====================================================================\r?\n# END CONFIGURATION)')
+        if ($raw -match '(?ms)(\$FolderMappings\s*=\s*@\(.+?\r?\n\))')
         {
             $cfg = $matches[1]
             $state = [powershell]::Create()
             $state.AddScript($cfg).Invoke() | Out-Null
             $vars = $state.Runspace.SessionStateProxy.PSVariable
             $mappings = $vars.GetValue("FolderMappings")
-            $globalFileTypes = $vars.GetValue("FileTypes")
 
             if ($mappings)
             {
                 $script:MappingsCollection.Clear()
                 foreach ($m in $mappings)
                 {
-                    $tStr = if ($m.FileTypes) { ($m.FileTypes -join ', ') } elseif ($globalFileTypes) { ($globalFileTypes -join ', ') } else { "*.*" }
+                    $tStr = if ($m.FileTypes) { ($m.FileTypes -join ', ') } else { "*.*" }
                     $script:MappingsCollection.Add([PSCustomObject]@{
                         Name        = $m.Name
                         Source      = $m.Source
@@ -1862,11 +2574,12 @@ $btnLoadConfig.Add_Click({
 # ====================================================================
 
 $window.Add_Loaded({
-    Write-ConsoleLog "Avgol Copy Master initialized." "SUCCESS"
-    Write-ConsoleLog "Ready. Configure your SMB source and local destinations below." "INFO"
+    Write-ConsoleLog "Avgol Copy Master initialized with Multi-Protocol Engine." "SUCCESS"
+    Write-ConsoleLog "Supported: SMB (445), SFTP (22), SCP (22), FTPS (990), FTP (21), WebDAV (443)." "INFO"
 
-    # Preload from local copy-script-v3.ps1 if present
+    # Preload from local script if present
     Load-LocalScriptConfig
+    Update-ProtocolUI
 })
 
 # Display Window

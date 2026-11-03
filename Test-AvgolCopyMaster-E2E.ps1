@@ -101,8 +101,9 @@ Write-Host ""
 
 $scriptDir = $PSScriptRoot
 if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
-$uiScriptPath  = [System.IO.Path]::Combine($scriptDir, "Avgol-CopyMaster-UI.ps1")
+$uiScriptPath   = [System.IO.Path]::Combine($scriptDir, "Avgol-CopyMaster-UI.ps1")
 $coreScriptPath = [System.IO.Path]::Combine($scriptDir, "Avgol-CopyScript.ps1")
+$secScriptPath  = [System.IO.Path]::Combine($scriptDir, "Avgol-SecurityProtocols.ps1")
 
 # ====================================================================================================
 # STAGE 1: REPOSITORY STATIC CODE & AST SYNTAX VALIDATION
@@ -131,6 +132,32 @@ if ($coreExists) {
     [System.Management.Automation.Language.Parser]::ParseFile($coreScriptPath, [ref]$null, [ref]$coreParseErrors) | Out-Null
     $coreErrCount = if ($coreParseErrors) { $coreParseErrors.Count } else { 0 }
     Assert-Condition -TestName "Avgol-CopyScript.ps1 AST Syntax Clean" -Condition ($coreErrCount -eq 0) -Details "Errors: $coreErrCount"
+}
+
+# Test 1.5: Security Protocols Module exists
+$secExists = Test-Path -LiteralPath $secScriptPath
+Assert-Condition -TestName "Verify Avgol-SecurityProtocols.ps1 exists" -Condition $secExists -Details $secScriptPath
+
+# Test 1.6: Security Protocols Module AST Syntax Clean (0 errors)
+$secParseErrors = $null
+if ($secExists) {
+    [System.Management.Automation.Language.Parser]::ParseFile($secScriptPath, [ref]$null, [ref]$secParseErrors) | Out-Null
+    $secErrCount = if ($secParseErrors) { $secParseErrors.Count } else { 0 }
+    Assert-Condition -TestName "Avgol-SecurityProtocols.ps1 AST Syntax Clean" -Condition ($secErrCount -eq 0) -Details "Errors: $secErrCount"
+}
+
+# Test 1.7: Security Protocols Key Generation & Guide Execution
+if ($secExists) {
+    . $secScriptPath
+    $testKeyDir = [System.IO.Path]::Combine($TestRoot, "SshTest")
+    $testCertDir = [System.IO.Path]::Combine($TestRoot, "CertTest")
+    $sshRes = New-AvgolSSHKeyPair -KeyType "ed25519" -TargetDirectory $testKeyDir
+    $certRes = New-AvgolSelfSignedTlsCert -CommonName "e2e.test.local" -ExportDirectory $testCertDir
+    $guideText = Get-RemoteServerSetupGuide -Protocol "SFTP" -RemoteHost "10.91.13.204" -Port 22 -RemoteUser "e2euser" -PublicKeyContent $sshRes.PublicKeyContent
+
+    Assert-Condition -TestName "SSH Key Pair Generation (ed25519)" -Condition ($sshRes.Success -and $sshRes.PublicKeyContent.StartsWith("ssh-ed25519")) -Details "Key generated"
+    Assert-Condition -TestName "Self-Signed TLS X.509 Certificate Generation" -Condition ($certRes.Success -and $certRes.Thumbprint.Length -gt 10) -Details "Thumbprint: $($certRes.Thumbprint)"
+    Assert-Condition -TestName "Remote Server Setup Guide Generation" -Condition ($guideText -and $guideText.Contains("authorized_keys") -and $guideText.Contains("ufw allow 22/tcp")) -Details "Guide generated"
 }
 
 # ====================================================================================================
@@ -242,6 +269,13 @@ $renderedScript = $renderedScript.Replace("__SOURCE_USERNAME__", $Username)
 $renderedScript = $renderedScript.Replace("__SOURCE_PASSWORD__", $Password)
 $renderedScript = $renderedScript.Replace("__FOLDER_MAPPINGS__", $mappingsCode)
 $renderedScript = $renderedScript.Replace("__LOG_FOLDER__", $testLog)
+$renderedScript = $renderedScript.Replace("__SOURCE_PROTOCOL__", "SMB")
+$renderedScript = $renderedScript.Replace("__SOURCE_PORT__", "445")
+$renderedScript = $renderedScript.Replace("__SOURCE_HOST__", "127.0.0.1")
+$renderedScript = $renderedScript.Replace("__SSH_KEY_PATH__", "")
+$renderedScript = $renderedScript.Replace("__TLS_CERT_THUMB__", "")
+$renderedScript = $renderedScript.Replace("__TLS_PFX_PATH__", "")
+$renderedScript = $renderedScript.Replace("__TLS_PFX_PASSWORD__", "")
 $renderedScript = $renderedScript.Replace("__MAX_LOG_MB__", "10")
 $renderedScript = $renderedScript.Replace("__RETENTION_DAYS__", "30")
 $renderedScript = $renderedScript.Replace("__POLLING_SEC__", "60")

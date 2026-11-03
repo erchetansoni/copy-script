@@ -111,12 +111,33 @@ In **Section 3 (Data Lifecycle & Archive Policies)**:
 
 ## ⚙️ Feature Reference
 
-### 1. SMB Authentication & Connectivity
-- Remote Windows and Linux SMB/CIFS shares often require explicit network sessions when running unattended.
-- Avgol Copy Master automatically detects all unique root shares from your configured UNC paths (e.g., `\\10.91.13.204\qw`).
-- It establishes non-persistent SMB credential sessions (`net use "\\server\share" /user:Domain\User Password /persistent:no`) before Robocopy starts, avoiding Windows drive-letter dependencies.
+### 1. Multi-Protocol Engine & Default Ports
+Avgol Copy Master supports diverse industrial and enterprise file transfer protocols:
+- **SMB / CIFS (Port 445)**: Standard Windows Network File Sharing (Robocopy restartable mode, SMBv2/SMBv3).
+- **SFTP (Port 22)**: Encrypted SSH File Transfer Protocol.
+- **SCP (Port 22)**: Secure Copy Protocol over SSH.
+- **FTPS (Port 990)**: FTP secured with SSL/TLS and X.509 certificates.
+- **FTP (Port 21)**: Standard unencrypted FTP.
+- **WebDAV / HTTPS (Port 443)**: WebDAV file publishing over SSL/TLS.
 
-### 2. Multi-Folder Mapping Engine
+### 2. SSH Key Pair Wizard (ed25519 & RSA 4096)
+For SSH-based transfers (SFTP and SCP):
+- **Paste Existing Keys**: Paste your existing private and public keys into the GUI wizard.
+- **Auto-Generate Keys**: In one click, generate modern high-security `ed25519` key pairs (or 4096-bit RSA).
+- **Export Paths**: Private keys are safely stored in `$env:USERPROFILE\.ssh\id_avgol_*`.
+
+### 3. X.509 TLS / mTLS Certificate Wizard
+For TLS-based protocols (FTPS and WebDAV):
+- **Generate Self-Signed Certificate**: Generates 4096-bit RSA self-signed certificates with custom DNS/IP SANs.
+- **Exports**: Produces `.cer` (Public Certificate), `.crt.pem` (Base64 Public PEM), and password-protected `.pfx` (PKCS#12 bundle).
+
+### 4. Remote Server Setup & Firewall Guide
+Click **Remote Server Setup & Firewall Guide** in the GUI header to view step-by-step instructions for:
+- **SSH authorized_keys**: Exact commands to deploy public keys on Linux (`~/.ssh/authorized_keys`, `chmod 600`) and Windows OpenSSH (`administrators_authorized_keys`, `icacls`).
+- **Firewall Open Rules**: UFW, firewalld, and Windows Defender Firewall (`netsh advfirewall`) rules for each default port.
+- **TLS Binding**: How to bind certificates in IIS FTP / SSL settings or Linux `vsftpd.conf`.
+
+### 5. Multi-Folder Mapping Engine
 - Supports an arbitrary number of folder mappings across different servers, shares, and local drives.
 - Each mapping is isolated: a failure on one mapping (e.g., camera offline) does not halt synchronization of other lines.
 - Robocopy automatically creates missing destination directories on demand.
