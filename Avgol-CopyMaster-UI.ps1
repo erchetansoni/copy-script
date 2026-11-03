@@ -82,35 +82,110 @@ if (Test-Path -LiteralPath $secModule)
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
-        <!-- Dark ComboBox Style & Item Style for Dark Mode Visibility -->
+        <!-- ToggleButton Template for Dark ComboBox -->
+        <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
+            <Border x:Name="templateRoot" Background="#22222d" BorderBrush="#4f4f66" BorderThickness="1" CornerRadius="4">
+                <Border x:Name="splitBorder" Width="22" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0">
+                    <Path x:Name="arrow" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#8b949e"
+                          Data="M 0 0 L 4 4 L 8 0 Z"/>
+                </Border>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="templateRoot" Property="BorderBrush" Value="#58a6ff"/>
+                    <Setter TargetName="arrow" Property="Fill" Value="#58a6ff"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="templateRoot" Property="BorderBrush" Value="#58a6ff"/>
+                    <Setter TargetName="arrow" Property="Fill" Value="#58a6ff"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Robust Dark ComboBox Style & Item Style for 100% Dark Theme Visibility -->
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#1c1c24"/>
             <Setter Property="Foreground" Value="#ffffff"/>
-            <Setter Property="BorderBrush" Value="#4e4e63"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="templateRoot">
+                            <ToggleButton x:Name="toggleButton"
+                                          Template="{StaticResource ComboBoxToggleButtonTemplate}"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <ContentPresenter x:Name="contentPresenter"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              Margin="10,0,26,0"
+                                              IsHitTestVisible="False">
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#ffffff"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Slide">
+                                <Border x:Name="dropDownBorder"
+                                        MinWidth="{Binding ActualWidth, ElementName=templateRoot}"
+                                        MaxHeight="220"
+                                        Background="#1c1c26"
+                                        BorderBrush="#4f4f66"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Margin="0,2,0,0">
+                                    <ScrollViewer x:Name="DropDownScrollViewer">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#1c1c24"/>
+            <Setter Property="Background" Value="#1c1c26"/>
             <Setter Property="Foreground" Value="#f0f0f5"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#0969da"/>
-                    <Setter Property="Foreground" Value="#ffffff"/>
-                </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#1f3a5f"/>
-                    <Setter Property="Foreground" Value="#58a6ff"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="itemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/>
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="#0969da"/>
+                                <Setter Property="Foreground" Value="#ffffff"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#1f3a5f"/>
+                                <Setter Property="Foreground" Value="#58a6ff"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Button Base -->
@@ -676,17 +751,37 @@ function Write-ConsoleLog
 
 function Update-ProtocolUI
 {
-    $proto = $cmbProtocol.Text
-    if (-not $proto)
+    param([string]$selectedProto = "")
+
+    if ([string]::IsNullOrWhiteSpace($selectedProto))
     {
-        $proto = ($cmbProtocol.SelectedItem.Content).ToString()
+        if ($cmbProtocol.SelectedItem)
+        {
+            if ($cmbProtocol.SelectedItem -is [System.Windows.Controls.ComboBoxItem])
+            {
+                $selectedProto = ($cmbProtocol.SelectedItem.Content).ToString()
+            }
+            else
+            {
+                $selectedProto = ($cmbProtocol.SelectedItem).ToString()
+            }
+        }
+        elseif ($cmbProtocol.Text)
+        {
+            $selectedProto = $cmbProtocol.Text
+        }
     }
 
-    $meta = $script:SupportedProtocols[$proto]
+    if ([string]::IsNullOrWhiteSpace($selectedProto))
+    {
+        $selectedProto = "SMB"
+    }
+
+    $meta = $script:SupportedProtocols[$selectedProto]
     if ($meta)
     {
         $txtPort.Text = "$($meta.DefaultPort)"
-        Write-ConsoleLog "Protocol selected: $proto (Default Port: $($meta.DefaultPort))" "INFO"
+        Write-ConsoleLog "Protocol selected: $selectedProto (Default Port: $($meta.DefaultPort))" "INFO"
 
         if ($meta.RequiresSSH)
         {
@@ -707,7 +802,21 @@ function Update-ProtocolUI
 }
 
 $cmbProtocol.Add_SelectionChanged({
-    Update-ProtocolUI
+    param($sender, $e)
+    $newProto = ""
+    if ($e.AddedItems -and $e.AddedItems.Count -gt 0)
+    {
+        $item = $e.AddedItems[0]
+        if ($item -is [System.Windows.Controls.ComboBoxItem])
+        {
+            $newProto = ($item.Content).ToString()
+        }
+        else
+        {
+            $newProto = $item.ToString()
+        }
+    }
+    Update-ProtocolUI -selectedProto $newProto
 })
 
 # ====================================================================
