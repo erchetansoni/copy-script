@@ -499,24 +499,33 @@ function Test-AvgolProtocolEndpoint
             $sshCmd = Get-Command "ssh.exe" -ErrorAction SilentlyContinue
             if ($sshCmd -and $Username)
             {
-                $authArg = if ($PrivateKeyPath -and (Test-Path -LiteralPath $PrivateKeyPath)) {
-                    "-i `"$PrivateKeyPath`""
-                } else {
-                    ""
+                $authArg = ""
+                $keyUsedDesc = ""
+
+                if ($PrivateKeyPath -and (Test-Path -LiteralPath $PrivateKeyPath))
+                {
+                    # Explicitly use the specified key and disable standard fallback identities
+                    $authArg = "-i `"$PrivateKeyPath`" -o IdentitiesOnly=yes"
+                    $keyUsedDesc = "Specified Key: $PrivateKeyPath"
+                }
+                else
+                {
+                    # No key explicitly provided in UI box
+                    $keyUsedDesc = "Default OpenSSH Key (~/.ssh/id_ed25519 or ~/.ssh/id_rsa)"
                 }
 
-                # Non-interactive batch mode check (will test public key auth instantly)
+                # Non-interactive batch mode check (test public key auth strictly)
                 $testArgs = "-p $Port -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=$TimeoutSeconds $authArg $Username@$HostName exit"
                 $proc = Start-Process -FilePath "ssh.exe" -ArgumentList $testArgs -Wait -NoNewWindow -PassThru
                 if ($proc.ExitCode -eq 0)
                 {
                     $result.AuthSuccess = $true
-                    $result.Message = "SSH/SFTP Port $Port OPEN and Public-Key Authentication SUCCESSFUL for $Username@$HostName!"
+                    $result.Message = "SSH/SFTP Port $Port OPEN and Authentication SUCCESSFUL for $Username@$HostName! ($keyUsedDesc)"
                 }
                 else
                 {
                     $result.AuthSuccess = $false
-                    $result.Message = "SSH Port $Port is OPEN! Note: Key auth not yet accepted by remote server (Exit Code $($proc.ExitCode)). Ensure Public Key is in authorized_keys."
+                    $result.Message = "SSH Port $Port is OPEN, but key authentication was rejected using $keyUsedDesc. (Exit Code $($proc.ExitCode)). Ensure the Public Key is added to $Username's ~/.ssh/authorized_keys."
                 }
             }
             else

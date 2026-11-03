@@ -282,7 +282,7 @@ function Invoke-SshFileReplication
         $authArg = ""
         if ($SshPrivateKeyPath -and (Test-Path -LiteralPath $SshPrivateKeyPath))
         {
-            $authArg = "-i `"$SshPrivateKeyPath`""
+            $authArg = "-i `"$SshPrivateKeyPath`" -o IdentitiesOnly=yes"
         }
 
         Write-Log "[$($Mapping.Name)] Starting $Mode Transfer from ${user}@${hostName}:${remoteSrc} -> $DestPath"
