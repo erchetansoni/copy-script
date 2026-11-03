@@ -1122,12 +1122,16 @@ function Show-SshKeyWizardDialog
         $targetDir = "$env:USERPROFILE\.ssh"
         if (!(Test-Path -LiteralPath $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
 
+        # OpenSSH strictly requires a trailing POSIX newline (\n) at the end of the private key file
+        $privFormatted = ($privText.Trim() -replace "`r`n", "`n") + "`n"
+        $pubFormatted  = if ($pubText) { ($pubText.Trim() -replace "`r`n", "`n") + "`n" } else { "" }
+
         $keyFile = [System.IO.Path]::Combine($targetDir, "id_avgol_custom")
-        [System.IO.File]::WriteAllText($keyFile, $privText, [System.Text.Encoding]::ASCII)
-        if ($pubText)
+        [System.IO.File]::WriteAllText($keyFile, $privFormatted, [System.Text.Encoding]::ASCII)
+        if ($pubFormatted)
         {
-            [System.IO.File]::WriteAllText("$keyFile.pub", $pubText, [System.Text.Encoding]::ASCII)
-            $script:CurrentSshPublicKey = $pubText
+            [System.IO.File]::WriteAllText("$keyFile.pub", $pubFormatted, [System.Text.Encoding]::ASCII)
+            $script:CurrentSshPublicKey = $pubText.Trim()
         }
 
         $txtSshKeyPath.Text = $keyFile
