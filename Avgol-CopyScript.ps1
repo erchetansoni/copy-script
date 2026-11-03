@@ -287,7 +287,27 @@ function Invoke-SshFileReplication
         {
             # CASE 1: Local Source -> Remote Destination (Push / Upload)
             $LocalSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/')
-            $RemoteDestPath  = $Mapping.Destination.Trim().TrimEnd('\', '/').Replace("\", "/")
+            # Format Remote Destination Path for SFTP/SCP:
+            # - Remove leading hostname or IP prefix if entered (e.g. 172.20.64.12\path or \\172.20.64.12\path)
+            # - Format drive letters cleanly for OpenSSH (e.g. C:/ot_share/... or /C:/ot_share/...)
+            $RemoteDestPath = $Mapping.Destination.Trim().TrimEnd('\', '/').Replace("\", "/")
+            if ($RemoteDestPath -match '^(?:(?://|\\\\)?[^/]+)?/(.+)$')
+            {
+                # Check if user entered hostname\share or \\host\share
+                if ($RemoteDestPath.StartsWith("//") -or ($RemoteDestPath -match '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/(.+)$'))
+                {
+                    $RemoteDestPath = $matches[1]
+                }
+            }
+            # If path has a Windows drive letter like C:/folder, ensure it is formatted as /C:/folder
+            if ($RemoteDestPath -match '^([a-zA-Z]):/(.*)$')
+            {
+                $RemoteDestPath = "/$($matches[1]):/$($matches[2])"
+            }
+            elseif (-not $RemoteDestPath.StartsWith("/") -and -not $RemoteDestPath.StartsWith("."))
+            {
+                $RemoteDestPath = "/$RemoteDestPath"
+            }
 
             if (!(Test-Path -LiteralPath $LocalSourcePath))
             {
@@ -352,7 +372,26 @@ function Invoke-SshFileReplication
         else
         {
             # CASE 2: Remote Source -> Local Destination (Pull / Download)
+            # Format Remote Source Path for SFTP/SCP:
+            # - Remove leading hostname or IP prefix if entered
+            # - Format drive letters cleanly for OpenSSH
             $RemoteSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/').Replace("\", "/")
+            if ($RemoteSourcePath -match '^(?:(?://|\\\\)?[^/]+)?/(.+)$')
+            {
+                if ($RemoteSourcePath.StartsWith("//") -or ($RemoteSourcePath -match '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/(.+)$'))
+                {
+                    $RemoteSourcePath = $matches[1]
+                }
+            }
+            if ($RemoteSourcePath -match '^([a-zA-Z]):/(.*)$')
+            {
+                $RemoteSourcePath = "/$($matches[1]):/$($matches[2])"
+            }
+            elseif (-not $RemoteSourcePath.StartsWith("/") -and -not $RemoteSourcePath.StartsWith("."))
+            {
+                $RemoteSourcePath = "/$RemoteSourcePath"
+            }
+
             $LocalDestPath    = $Mapping.Destination.Trim().TrimEnd('\', '/')
 
             if (!(Test-Path -LiteralPath $LocalDestPath))

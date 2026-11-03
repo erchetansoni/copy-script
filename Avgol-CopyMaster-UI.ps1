@@ -1930,6 +1930,23 @@ function Invoke-SshFileReplication
             $LocalSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/')
             $RemoteDestPath  = $Mapping.Destination.Trim().TrimEnd('\', '/').Replace("\", "/")
 
+            # Strip IP/host prefixes and format drive letters cleanly for OpenSSH
+            if ($RemoteDestPath -match '^(?:(?://|\\\\)?[^/]+)?/(.+)$')
+            {
+                if ($RemoteDestPath.StartsWith("//") -or ($RemoteDestPath -match '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/(.+)$'))
+                {
+                    $RemoteDestPath = $matches[1]
+                }
+            }
+            if ($RemoteDestPath -match '^([a-zA-Z]):/(.*)$')
+            {
+                $RemoteDestPath = "/$($matches[1]):/$($matches[2])"
+            }
+            elseif (-not $RemoteDestPath.StartsWith("/") -and -not $RemoteDestPath.StartsWith("."))
+            {
+                $RemoteDestPath = "/$RemoteDestPath"
+            }
+
             if (!(Test-Path -LiteralPath $LocalSourcePath))
             {
                 Write-Log "[$($Mapping.Name)] WARNING: Local source directory does not exist: $LocalSourcePath"
@@ -1994,6 +2011,22 @@ function Invoke-SshFileReplication
         {
             # CASE 2: Remote Source -> Local Destination (Pull / Download)
             $RemoteSourcePath = $Mapping.Source.Trim().TrimEnd('\', '/').Replace("\", "/")
+            if ($RemoteSourcePath -match '^(?:(?://|\\\\)?[^/]+)?/(.+)$')
+            {
+                if ($RemoteSourcePath.StartsWith("//") -or ($RemoteSourcePath -match '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/(.+)$'))
+                {
+                    $RemoteSourcePath = $matches[1]
+                }
+            }
+            if ($RemoteSourcePath -match '^([a-zA-Z]):/(.*)$')
+            {
+                $RemoteSourcePath = "/$($matches[1]):/$($matches[2])"
+            }
+            elseif (-not $RemoteSourcePath.StartsWith("/") -and -not $RemoteSourcePath.StartsWith("."))
+            {
+                $RemoteSourcePath = "/$RemoteSourcePath"
+            }
+
             $LocalDestPath    = $Mapping.Destination.Trim().TrimEnd('\', '/')
 
             if (!(Test-Path -LiteralPath $LocalDestPath))
