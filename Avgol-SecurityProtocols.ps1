@@ -412,9 +412,9 @@ function Get-RemoteServerSetupGuide
             $sb.AppendLine("New-NetFirewallRule -Name 'FTPS-Data' -DisplayName 'FTPS Passive Data (50000-50100)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 50000-50100 -ErrorAction SilentlyContinue | Out-Null") | Out-Null
             $sb.AppendLine("") | Out-Null
             $sb.AppendLine("# 2. Import TLS Certificate (.pfx) into Windows LocalMachine Personal Store") | Out-Null
-            $sb.AppendLine("# (Copy your generated .pfx file to remote server C:\temp\avgol_cert.pfx first)") | Out-Null
-            $sb.AppendLine("`$pfxPath = 'C:\temp\avgol_cert.pfx'") | Out-Null
-            $sb.AppendLine("`$pfxPass = 'AvgolSecurePassword123!'") | Out-Null
+            $sb.AppendLine("# (Copy your generated .pfx file to remote server C:\temp\tls_cert.pfx first)") | Out-Null
+            $sb.AppendLine("`$pfxPath = 'C:\temp\tls_cert.pfx'") | Out-Null
+            $sb.AppendLine("`$pfxPass = 'YourPasswordHere'") | Out-Null
             $sb.AppendLine("if (Test-Path -LiteralPath `$pfxPath) {") | Out-Null
             $sb.AppendLine("    Import-PfxCertificate -FilePath `$pfxPath -CertStoreLocation 'Cert:\LocalMachine\My' -Password (ConvertTo-SecureString `$pfxPass -AsPlainText -Force) | Out-Null") | Out-Null
             $sb.AppendLine("    Write-Host 'Imported TLS Certificate into LocalMachine Store' -ForegroundColor Green") | Out-Null
@@ -430,7 +430,7 @@ function Get-RemoteServerSetupGuide
             $sb.AppendLine("================================================================================") | Out-Null
             $sb.AppendLine("Copy .crt.pem and .key to /etc/ssl/certs/ and add to /etc/vsftpd.conf:") | Out-Null
             $sb.AppendLine("  ssl_enable=YES") | Out-Null
-            $sb.AppendLine("  rsa_cert_file=/etc/ssl/certs/avgol_tls.crt.pem") | Out-Null
+            $sb.AppendLine("  rsa_cert_file=/etc/ssl/certs/tls_cert.crt.pem") | Out-Null
             $sb.AppendLine("  sudo systemctl restart vsftpd") | Out-Null
         }
 

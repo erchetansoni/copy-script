@@ -1,10 +1,10 @@
 <#
 ====================================================================================================
-AVGOL COPY MASTER - REPLICATION CONFIGURATOR & TASK INSTALLER (GUI)
+COPY MASTER - REPLICATION CONFIGURATOR & TASK INSTALLER (GUI)
 ====================================================================================================
 Description:
 A modern, standalone Windows WPF GUI to configure multi-folder, multi-protocol replication
-(SMB, SFTP, SCP, FTPS, FTP, WebDAV), test network credentials and ports, generate SSH keys &
+(SFTP, SCP, SMB, FTPS, FTP, WebDAV), test network credentials and ports, generate SSH keys &
 TLS/mTLS certificates, inspect remote server firewall/authorized_keys instructions, generate
 production-ready scripts, and create Windows Scheduled Tasks in a single click.
 
@@ -26,7 +26,7 @@ if (Test-Path -LiteralPath $secModule)
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Avgol Copy Master - Multi-Protocol Replication Suite"
+    Title="Copy Master - Multi-Protocol Replication Suite"
     Width="1020" Height="860"
     MinWidth="880" MinHeight="700"
     WindowStartupLocation="CenterScreen"
@@ -58,6 +58,16 @@ if (Test-Path -LiteralPath $secModule)
             <Setter Property="Foreground" Value="#b0b0c0"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <!-- Watermark / Placeholder Hint Style -->
+        <Style x:Key="HintText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#525266"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
         </Style>
 
         <!-- Dark TextBox Style -->
@@ -247,8 +257,8 @@ if (Test-Path -LiteralPath $secModule)
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Avgol Copy Master" FontSize="18" FontWeight="Bold" Foreground="#ffffff"/>
-                <TextBlock Text="Industrial Multi-Folder Replication Suite (SMB, SFTP, SCP, FTPS, FTP, WebDAV)" FontSize="11" Foreground="#8b949e" Margin="0,2,0,0"/>
+                <TextBlock Text="Copy Master" FontSize="18" FontWeight="Bold" Foreground="#ffffff"/>
+                <TextBlock Text="Industrial Multi-Folder Replication Suite (SFTP, SCP, SMB, FTPS, FTP, WebDAV)" FontSize="11" Foreground="#8b949e" Margin="0,2,0,0"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button x:Name="btnShowServerGuide" Content="Remote Server Setup &amp; Firewall Guide" Style="{StaticResource SecurityButton}" Height="30" Margin="0,0,8,0"/>
@@ -279,8 +289,8 @@ if (Test-Path -LiteralPath $secModule)
                             <TextBlock Grid.Column="0" Text="1. PROTOCOL, DIRECTION &amp; ENDPOINT AUTHENTICATION" Style="{StaticResource SectionHeader}" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                 <TextBlock Text="Sync Direction:" Foreground="#8b949e" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="rbPull" GroupName="SyncDir" Content="Remote Source -&gt; Local Dest (Download)" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold" IsChecked="True" VerticalAlignment="Center" Margin="0,0,14,0"/>
-                                <RadioButton x:Name="rbPush" GroupName="SyncDir" Content="Local Source -&gt; Remote Dest (Upload)" Foreground="#34d399" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <RadioButton x:Name="rbPush" GroupName="SyncDir" Content="Local Source -&gt; Remote Dest (Upload)" Foreground="#34d399" FontSize="11" FontWeight="SemiBold" IsChecked="True" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <RadioButton x:Name="rbPull" GroupName="SyncDir" Content="Remote Source -&gt; Local Dest (Download)" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
@@ -294,17 +304,17 @@ if (Test-Path -LiteralPath $secModule)
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
                                 <TextBlock Text="Protocol:" Foreground="#b0b0c0" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <ComboBox x:Name="cmbProtocol" Width="140" Height="28">
-                                    <ComboBoxItem Content="SMB" IsSelected="True"/>
-                                    <ComboBoxItem Content="SFTP"/>
+                                    <ComboBoxItem Content="SFTP" IsSelected="True"/>
                                     <ComboBoxItem Content="SCP"/>
+                                    <ComboBoxItem Content="SMB"/>
                                     <ComboBoxItem Content="FTPS"/>
                                     <ComboBoxItem Content="FTP"/>
                                     <ComboBoxItem Content="WebDAV"/>
                                 </ComboBox>
                                 <TextBlock Text="Port:" Foreground="#b0b0c0" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0"/>
-                                <TextBox x:Name="txtPort" Width="55" Height="28" Text="445" HorizontalContentAlignment="Center"/>
+                                <TextBox x:Name="txtPort" Width="55" Height="28" Text="22" HorizontalContentAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock x:Name="lblDirectionSummary" Grid.Column="2" Text="Direction: Pull mode (Downloading from remote server)" Foreground="#93c5fd" FontSize="11" VerticalAlignment="Center" FontStyle="Italic"/>
+                            <TextBlock x:Name="lblDirectionSummary" Grid.Column="2" Text="Direction: Case 1 - Push mode (Local Source -&gt; Remote Destination)" Foreground="#34d399" FontSize="11" VerticalAlignment="Center" FontStyle="Italic"/>
                         </Grid>
 
                         <!-- Row 2: Host, Username, Password, Connection Test -->
@@ -322,13 +332,39 @@ if (Test-Path -LiteralPath $secModule)
                             <!-- Remote Host / Server IP -->
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Remote Host / Server IP" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtHost" Height="30" Text="10.91.13.204"/>
+                                <Grid>
+                                    <TextBox x:Name="txtHost" Height="30" Text=""/>
+                                    <TextBlock Text="e.g. 172.20.64.12 or server.domain.com">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtHost}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </StackPanel>
 
                             <!-- Username -->
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Username (e.g. 10.91.13.204\admin)" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtUsername" Height="30" Text="10.91.13.204\admin"/>
+                                <TextBlock Text="Username (e.g. chetan or domain\user)" Style="{StaticResource FieldLabel}"/>
+                                <Grid>
+                                    <TextBox x:Name="txtUsername" Height="30" Text=""/>
+                                    <TextBlock Text="e.g. chetan or domain\admin">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtUsername}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </StackPanel>
 
                             <!-- Password -->
@@ -340,6 +376,17 @@ if (Test-Path -LiteralPath $secModule)
                                 <Grid>
                                     <PasswordBox x:Name="txtPassword" Height="30"/>
                                     <TextBox x:Name="txtPasswordPlain" Height="30" Visibility="Collapsed"/>
+                                    <TextBlock Text="Password or Key Passphrase">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtPasswordPlain}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                             </StackPanel>
 
@@ -353,7 +400,7 @@ if (Test-Path -LiteralPath $secModule)
                         <!-- Row 3: Dynamic Security Panel: SSH Keys / TLS Certificates -->
                         <StackPanel Grid.Row="3" x:Name="pnlSecurityOptions" Margin="0,4,0,0">
                             <!-- SSH / SFTP / SCP Key Panel -->
-                            <Border x:Name="pnlSshKeyBox" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Collapsed">
+                            <Border x:Name="pnlSshKeyBox" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Visible">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -363,7 +410,20 @@ if (Test-Path -LiteralPath $secModule)
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="SSH Private Key:" Foreground="#7ee787" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBox x:Name="txtSshKeyPath" Grid.Column="1" Height="28" Text="" VerticalAlignment="Center"/>
+                                    <Grid Grid.Column="1">
+                                        <TextBox x:Name="txtSshKeyPath" Height="28" Text="" VerticalAlignment="Center"/>
+                                        <TextBlock Text="e.g. C:\Users\&lt;user&gt;\.ssh\id_ed25519">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=txtSshKeyPath}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
                                     <Button x:Name="btnBrowseSshKey" Grid.Column="2" Content="Browse..." Width="70" Height="28" Style="{StaticResource SecondaryButton}" Margin="6,0,0,0"/>
                                     <Button x:Name="btnManageSshKeys" Grid.Column="4" Content="SSH Key Wizard (Paste / Generate)" Style="{StaticResource SecurityButton}" Height="28"/>
                                 </Grid>
@@ -373,6 +433,34 @@ if (Test-Path -LiteralPath $secModule)
                             <Border x:Name="pnlTlsCertBox" Background="#1f1a28" BorderBrush="#4f3869" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,4,0,0" Visibility="Collapsed">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="TLS / PFX Cert:" Foreground="#d2a8ff" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <Grid Grid.Column="1">
+                                        <TextBox x:Name="txtTlsPfxPath" Height="28" Text="" VerticalAlignment="Center"/>
+                                        <TextBlock Text="e.g. C:\Certificates\tls_cert.pfx">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=txtTlsPfxPath}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <Button x:Name="btnBrowseTlsPfx" Grid.Column="2" Content="Browse..." Width="70" Height="28" Style="{StaticResource SecondaryButton}" Margin="6,0,0,0"/>
+                                    <Button x:Name="btnManageTlsCert" Grid.Column="4" Content="TLS Cert Wizard (Paste / Generate)" Style="{StaticResource SecurityButton}" Height="28"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -460,36 +548,84 @@ if (Test-Path -LiteralPath $secModule)
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Name" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtMapName" Height="28" Text="Line 1"/>
+                                <Grid>
+                                    <TextBox x:Name="txtMapName" Height="28" Text=""/>
+                                    <TextBlock Text="e.g. Line 1">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtMapName}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock x:Name="lblMapSource" Text="Source Path (UNC / Remote)" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock x:Name="lblMapSource" Text="Source Path (Local Machine)" Style="{StaticResource FieldLabel}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtMapSource" Grid.Column="0" Height="28" Text="\\10.91.13.204\qw\Test1"/>
+                                    <TextBox x:Name="txtMapSource" Grid.Column="0" Height="28" Text=""/>
+                                    <TextBlock x:Name="lblMapSourceHint" Grid.Column="0" Text="e.g. C:\temp\TEST\data1">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtMapSource}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <Button x:Name="btnBrowseSource" Grid.Column="1" Content="..." Width="30" Height="28" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0"/>
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="4">
-                                <TextBlock x:Name="lblMapDest" Text="Destination Path (Local)" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock x:Name="lblMapDest" Text="Destination Path (Remote UNC or Server Path)" Style="{StaticResource FieldLabel}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtMapDest" Grid.Column="0" Height="28" Text="C:\temp\TEST\data1"/>
+                                    <TextBox x:Name="txtMapDest" Grid.Column="0" Height="28" Text=""/>
+                                    <TextBlock x:Name="lblMapDestHint" Grid.Column="0" Text="e.g. C:\ot_share\test\test1 or /path">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtMapDest}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <Button x:Name="btnBrowseDest" Grid.Column="1" Content="..." Width="30" Height="28" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0"/>
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="6">
                                 <TextBlock Text="File Types" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtMapTypes" Height="28" Text="*.csv"/>
+                                <Grid>
+                                    <TextBox x:Name="txtMapTypes" Height="28" Text="*.csv"/>
+                                    <TextBlock Text="e.g. *.csv, *.*">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=txtMapTypes}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="8" VerticalAlignment="Bottom">
@@ -725,7 +861,7 @@ $namedElements = @(
     "btnBrowseTlsPfx", "btnManageTlsCert",
     "lblMappingHeader", "lblMappingCount", "dgMappings", "colSource", "colDest",
     "btnRemoveSelected", "btnClearAll", "txtMapName", "lblMapSource", "txtMapSource",
-    "btnBrowseSource", "lblMapDest", "txtMapDest",
+    "lblMapSourceHint", "btnBrowseSource", "lblMapDest", "txtMapDest", "lblMapDestHint",
     "btnBrowseDest", "txtMapTypes", "btnAddMapping", "chkEnableSourceDelete",
     "pnlSourceDeleteOptions", "txtSourceDeleteDays", "chkEnableDestArchive",
     "pnlDestArchiveOptions", "chkEnableDestDelete", "pnlDestDeleteOptions",
@@ -744,8 +880,8 @@ foreach ($name in $namedElements)
 $script:CurrentSshPublicKey  = ""
 $script:CurrentSshPrivateKey = ""
 $script:CurrentTlsCertThumb  = ""
-$script:CurrentTlsCommonName = "avgol-copymaster.local"
-$script:CurrentTlsPfxPass    = "AvgolSecurePassword123!"
+$script:CurrentTlsCommonName = "copymaster.local"
+$script:CurrentTlsPfxPass    = ""
 
 # Mapping ObservableCollection for WPF DataGrid Binding
 $script:MappingsCollection = [System.Collections.ObjectModel.ObservableCollection[PSCustomObject]]::new()
@@ -862,6 +998,8 @@ function Update-DirectionUI
         $colDest.Header = "Destination (Remote Path / UNC)"
         $lblMapSource.Text = "Source Path (Local Machine)"
         $lblMapDest.Text = "Destination Path (Remote UNC or Server Path)"
+        if ($lblMapSourceHint) { $lblMapSourceHint.Text = "e.g. C:\temp\TEST\data1" }
+        if ($lblMapDestHint) { $lblMapDestHint.Text = "e.g. C:\ot_share\test\test1 or /path" }
         Write-ConsoleLog "Mode set: Case 1 - Push / Upload (Local Source -> Remote Destination)" "INFO"
     }
     else
@@ -873,6 +1011,8 @@ function Update-DirectionUI
         $colDest.Header = "Destination (Local Path)"
         $lblMapSource.Text = "Source Path (Remote UNC or Server Path)"
         $lblMapDest.Text = "Destination Path (Local Machine)"
+        if ($lblMapSourceHint) { $lblMapSourceHint.Text = "e.g. /ot_share/test/test1 or \\server\share" }
+        if ($lblMapDestHint) { $lblMapDestHint.Text = "e.g. C:\temp\TEST\data1" }
         Write-ConsoleLog "Mode set: Case 2 - Pull / Download (Remote Source -> Local Destination)" "INFO"
     }
 }
@@ -910,6 +1050,13 @@ function Set-CurrentPassword([string]$pwd)
     $txtPassword.Password = $pwd
     $txtPasswordPlain.Text = $pwd
 }
+
+$txtPassword.Add_PasswordChanged({
+    if (-not $chkShowPassword.IsChecked)
+    {
+        $txtPasswordPlain.Text = $txtPassword.Password
+    }
+})
 
 # ====================================================================
 # FOLDER BROWSING HELPERS
@@ -997,7 +1144,7 @@ $btnBrowseTlsPfx.Add_Click({
 function Show-SshKeyWizardDialog
 {
     $dialog = [System.Windows.Window]::new()
-    $dialog.Title = "SSH Key Wizard - Avgol Copy Master"
+    $dialog.Title = "SSH Key Wizard - Copy Master"
     $dialog.Width = 680
     $dialog.Height = 560
     $dialog.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
@@ -1155,7 +1302,7 @@ $btnManageSshKeys.Add_Click({
 function Show-TlsCertWizardDialog
 {
     $dialog = [System.Windows.Window]::new()
-    $dialog.Title = "TLS / mTLS Certificate Wizard - Avgol Copy Master"
+    $dialog.Title = "TLS / mTLS Certificate Wizard - Copy Master"
     $dialog.Width = 720
     $dialog.Height = 580
     $dialog.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
@@ -1190,14 +1337,14 @@ function Show-TlsCertWizardDialog
     $gInputs.ColumnDefinitions.Add($ci0); $gInputs.ColumnDefinitions.Add($ci1); $gInputs.ColumnDefinitions.Add($ci2)
 
     $spCn = [System.Windows.Controls.StackPanel]::new()
-    $lblCn = [System.Windows.Controls.TextBlock]::new(); $lblCn.Text = "Certificate Subject / Common Name (e.g. 10.91.13.204 or server.local)"; $lblCn.FontSize = 11; $lblCn.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b0b0c0")
-    $txtCn = [System.Windows.Controls.TextBox]::new(); $txtCn.Height = 28; $txtCn.Text = if ($txtHost.Text) { $txtHost.Text } else { "avgol-copymaster.local" }
+    $lblCn = [System.Windows.Controls.TextBlock]::new(); $lblCn.Text = "Certificate Subject / Common Name (e.g. 172.20.64.12 or server.local)"; $lblCn.FontSize = 11; $lblCn.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b0b0c0")
+    $txtCn = [System.Windows.Controls.TextBox]::new(); $txtCn.Height = 28; $txtCn.Text = if ($txtHost.Text) { $txtHost.Text } else { "copymaster.local" }
     $spCn.Children.Add($lblCn); $spCn.Children.Add($txtCn)
     [System.Windows.Controls.Grid]::SetColumn($spCn, 0); $gInputs.Children.Add($spCn)
 
     $spPw = [System.Windows.Controls.StackPanel]::new()
     $lblPw = [System.Windows.Controls.TextBlock]::new(); $lblPw.Text = "PFX Export Password"; $lblPw.FontSize = 11; $lblPw.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b0b0c0")
-    $txtPfxPw = [System.Windows.Controls.TextBox]::new(); $txtPfxPw.Height = 28; $txtPfxPw.Text = "AvgolSecurePassword123!"
+    $txtPfxPw = [System.Windows.Controls.TextBox]::new(); $txtPfxPw.Height = 28; $txtPfxPw.Text = ""
     $spPw.Children.Add($lblPw); $spPw.Children.Add($txtPfxPw)
     [System.Windows.Controls.Grid]::SetColumn($spPw, 2); $gInputs.Children.Add($spPw)
 
@@ -1246,7 +1393,7 @@ function Show-TlsCertWizardDialog
     $btnGen.Add_Click({
         $cn = $txtCn.Text.Trim()
         $pw = $txtPfxPw.Text.Trim()
-        if ([string]::IsNullOrWhiteSpace($cn)) { $cn = "avgol-copymaster.local" }
+        if ([string]::IsNullOrWhiteSpace($cn)) { $cn = "copymaster.local" }
 
         $res = New-AvgolSelfSignedTlsCert -CommonName $cn -PfxPassword $pw
         if ($res.Success)
@@ -1402,7 +1549,7 @@ $chkEnableSourceDelete.Add_Checked({
         "Files at the remote source location(s) that are older than the configured threshold (from their last modified date) will be PERMANENTLY DELETED.`n`n" +
         "Safety Guarantee: A file will ONLY be deleted from the source after it has been verified to exist at the destination with matching size.`n`n" +
         "Are you sure you want to enable Source Data Deletion?",
-        "Avgol Copy Master - Confirm Source Data Deletion",
+        "Copy Master - Confirm Source Data Deletion",
         [System.Windows.MessageBoxButton]::YesNo,
         [System.Windows.MessageBoxImage]::Warning
     )
@@ -1457,7 +1604,7 @@ $chkEnableDestDelete.Add_Checked({
         "You are about to enable automatic deletion of historical archive folders at the destination.`n`n" +
         "Old monthly archive folders (e.g. '2025-08') and all files inside them older than the configured month threshold will be PERMANENTLY PURGED.`n`n" +
         "Are you sure you want to enable automatic deletion of old monthly destination archives?",
-        "Avgol Copy Master - Confirm Destination Archive Purge",
+        "Copy Master - Confirm Destination Archive Purge",
         [System.Windows.MessageBoxButton]::YesNo,
         [System.Windows.MessageBoxImage]::Warning
     )
@@ -1670,7 +1817,7 @@ function Generate-RobocopyScriptContent
     $template = @'
 <#
 ====================================================================================================
-AVGOL COPY MASTER - AUTO-GENERATED MULTI-PROTOCOL FILE REPLICATION
+COPY MASTER - AUTO-GENERATED MULTI-PROTOCOL FILE REPLICATION
 ====================================================================================================
 Generated On        : __GENERATED_TIMESTAMP__
 Sync Direction      : __SYNC_DIRECTION__ (Case 1: Push / Case 2: Pull)
@@ -2951,8 +3098,8 @@ $btnLoadConfig.Add_Click({
 # ====================================================================
 
 $window.Add_Loaded({
-    Write-ConsoleLog "Avgol Copy Master initialized with Multi-Protocol Engine." "SUCCESS"
-    Write-ConsoleLog "Supported: SMB (445), SFTP (22), SCP (22), FTPS (990), FTP (21), WebDAV (443)." "INFO"
+    Write-ConsoleLog "Copy Master initialized with Multi-Protocol Engine." "SUCCESS"
+    Write-ConsoleLog "Supported: SFTP (22), SCP (22), SMB (445), FTPS (990), FTP (21), WebDAV (443)." "INFO"
 
     # Preload from local script if present
     Load-LocalScriptConfig

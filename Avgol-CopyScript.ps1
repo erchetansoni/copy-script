@@ -1,6 +1,6 @@
 <#
 ====================================================================================================
-AVGOL COPY MASTER - MULTI-FOLDER FILE REPLICATION (MULTI-PROTOCOL & BI-DIRECTIONAL EDITION)
+COPY MASTER - MULTI-FOLDER FILE REPLICATION (MULTI-PROTOCOL & BI-DIRECTIONAL EDITION)
 ====================================================================================================
 
 DESCRIPTION
@@ -11,9 +11,9 @@ Replicates files across multiple mapped folders supporting both:
 
 SUPPORTED PROTOCOLS & DEFAULT PORTS
 ------------------------------------
-- SMB / CIFS : Port 445 (Robocopy restartable mode, SMBv2/SMBv3)
 - SFTP       : Port 22  (SSH File Transfer Protocol, SSH Key or Password)
 - SCP        : Port 22  (Secure Copy Protocol over SSH)
+- SMB / CIFS : Port 445 (Robocopy restartable mode, SMBv2/SMBv3)
 - FTPS       : Port 990 (FTP over TLS/SSL, X.509 Certificate Authentication)
 - FTP        : Port 21  (Standard FTP)
 - WebDAV     : Port 443 (HTTPS WebDAV publishing)
@@ -29,14 +29,14 @@ Uses Windows OpenSSH client (ssh.exe, scp.exe, sftp.exe), robocopy.exe, and .NET
 # SYNCHRONIZATION DIRECTION & PROTOCOL CONFIGURATION
 # ====================================================================
 
-# Direction: "Pull" (Remote Source -> Local Destination) or "Push" (Local Source -> Remote Destination)
-$SyncDirection       = "Pull"
+# Direction: "Push" (Case 1: Local Source -> Remote Destination) or "Pull" (Case 2: Remote Source -> Local Destination)
+$SyncDirection       = "Push"
 
-$SourceProtocol      = "SMB"
-$SourcePort          = 445
-$SourceHost          = "10.91.13.204"
-$SourceUsername      = "10.91.13.204\admin"
-$SourcePassword      = "Avgol2002"
+$SourceProtocol      = "SFTP"
+$SourcePort          = 22
+$SourceHost          = ""
+$SourceUsername      = ""
+$SourcePassword      = ""
 
 # SSH / Key-Based Authentication (For SFTP & SCP)
 $SshPrivateKeyPath   = ""
@@ -50,22 +50,7 @@ $TlsPfxPassword      = ""
 # FOLDER MAPPINGS (SOURCE -> DESTINATION)
 # ====================================================================
 
-$FolderMappings = @(
-    @{
-        Name        = "Line 1"
-        Source      = "\\10.91.13.204\qw\Test1"
-        Destination = "C:\temp\TEST\data1"
-        FileTypes   = @("*.csv")
-        Enabled     = $true
-    },
-    @{
-        Name        = "Line 2"
-        Source      = "\\10.91.13.204\qw\test2"
-        Destination = "C:\temp\TEST\data2"
-        FileTypes   = @("*.csv")
-        Enabled     = $true
-    }
-)
+$FolderMappings = @()
 
 # ====================================================================
 # DEFAULT SETTINGS
