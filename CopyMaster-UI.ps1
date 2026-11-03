@@ -16,7 +16,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 
 # Include Security & Cryptography Engine
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-$secModule = [System.IO.Path]::Combine($scriptDir, "Avgol-SecurityProtocols.ps1")
+$secModule = [System.IO.Path]::Combine($scriptDir, "SecurityProtocols.ps1")
 if (Test-Path -LiteralPath $secModule)
 {
     . $secModule
@@ -1233,7 +1233,7 @@ function Show-SshKeyWizardDialog
 
     # Event handlers
     $btnGen.Add_Click({
-        $res = New-AvgolSSHKeyPair -KeyType "ed25519"
+        $res = New-CopyMasterSSHKeyPair -KeyType "ed25519"
         if ($res.Success)
         {
             $txtPriv.Text = $res.PrivateKeyContent
@@ -1273,7 +1273,7 @@ function Show-SshKeyWizardDialog
         $privFormatted = ($privText.Trim() -replace "`r`n", "`n") + "`n"
         $pubFormatted  = if ($pubText) { ($pubText.Trim() -replace "`r`n", "`n") + "`n" } else { "" }
 
-        $keyFile = [System.IO.Path]::Combine($targetDir, "id_avgol_custom")
+        $keyFile = [System.IO.Path]::Combine($targetDir, "id_copymaster_custom")
         [System.IO.File]::WriteAllText($keyFile, $privFormatted, [System.Text.Encoding]::ASCII)
         if ($pubFormatted)
         {
@@ -1395,7 +1395,7 @@ function Show-TlsCertWizardDialog
         $pw = $txtPfxPw.Text.Trim()
         if ([string]::IsNullOrWhiteSpace($cn)) { $cn = "copymaster.local" }
 
-        $res = New-AvgolSelfSignedTlsCert -CommonName $cn -PfxPassword $pw
+        $res = New-CopyMasterSelfSignedTlsCert -CommonName $cn -PfxPassword $pw
         if ($res.Success)
         {
             $script:generatedPfxPath     = $res.PfxPath
@@ -1731,7 +1731,7 @@ $btnTestSmb.Add_Click({
 
     Write-ConsoleLog "Testing $proto connectivity to ${hostName}:${port}..." "INFO"
 
-    $testRes = Test-AvgolProtocolEndpoint `
+    $testRes = Test-CopyMasterProtocolEndpoint `
         -Protocol $proto `
         -HostName $hostName `
         -Port $port `
@@ -2944,7 +2944,7 @@ $btnRunNow.Add_Click({
 
 function Load-LocalScriptConfig
 {
-    $candidateNames = @("Avgol-CopyScript.ps1", "copy-script-v3.ps1", "copy-script.ps1")
+    $candidateNames = @("CopyScript.ps1", "copy-script-v3.ps1", "copy-script.ps1")
     $localScript = $null
     $baseDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
     foreach ($cand in $candidateNames)

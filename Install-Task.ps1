@@ -1,6 +1,6 @@
-<#
+﻿<#
 ================================================================================
-AVGOL COPY MASTER - TASK SCHEDULER INSTALLER
+COPY MASTER - TASK SCHEDULER INSTALLER
 ================================================================================
 
 DESCRIPTION
@@ -10,14 +10,14 @@ Robocopy synchronization script at a defined interval.
 
 FEATURES
 --------
-✅ Creates scheduled task
-✅ Removes existing task if present
-✅ Runs whether user is logged on or not
-✅ Runs with highest privileges
-✅ Auto-start after reboot
-✅ Repeat every X minutes
-✅ Prevents overlapping executions
-✅ Fully configurable
+âœ… Creates scheduled task
+âœ… Removes existing task if present
+âœ… Runs whether user is logged on or not
+âœ… Runs with highest privileges
+âœ… Auto-start after reboot
+âœ… Repeat every X minutes
+âœ… Prevents overlapping executions
+âœ… Fully configurable
 
 ================================================================================
 CONFIGURATION
@@ -27,16 +27,16 @@ CONFIGURATION
 # CONFIGURATION
 # ==================================================
 
-$TaskName = "Avgol Copy Master"
+$TaskName = "Copy Master"
 
-# Automatically detects Avgol-CopyScript.ps1 in the current script folder
-$ScriptPath = "$PSScriptRoot\Avgol-CopyScript.ps1"
+# Automatically detects CopyScript.ps1 in the current script folder
+$ScriptPath = "$PSScriptRoot\CopyScript.ps1"
 
 # Auto-resolve to absolute path if run interactively in console
 if (-not $PSScriptRoot -or -not [System.IO.Path]::IsPathRooted($ScriptPath))
 {
     $baseDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $ScriptPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($baseDir, "Avgol-CopyScript.ps1"))
+    $ScriptPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($baseDir, "CopyScript.ps1"))
 }
 
 $RunAsUser = "SYSTEM"

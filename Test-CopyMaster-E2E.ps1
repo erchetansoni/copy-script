@@ -1,10 +1,10 @@
-<#
+﻿<#
 ====================================================================================================
-AVGOL COPY MASTER - AUTOMATED END-TO-END (E2E) TEST SUITE
+COPY MASTER - AUTOMATED END-TO-END (E2E) TEST SUITE
 ====================================================================================================
 Purpose:
 Comprehensive automated verification script for developers and quality engineers.
-Simulates and validates all core subsystems of Avgol Copy Master:
+Simulates and validates all core subsystems of COPY MASTER:
   1. AST Syntax Parser Check (UI generator and core replication script)
   2. UI Template Extraction & Code Generation
   3. Robocopy Multi-Folder Synchronization
@@ -20,16 +20,16 @@ Modes:
   - Remote SMB Mode: Tests live network UNC shares with supplied credentials.
 
 Usage:
-  .\Test-AvgolCopyMaster-E2E.ps1
-  .\Test-AvgolCopyMaster-E2E.ps1 -KeepTestFiles
-  .\Test-AvgolCopyMaster-E2E.ps1 -RemoteUNC "\\10.91.13.204\qw\E2E_Test" -Username "10.91.13.204\admin" -Password "Avgol2002"
+  .\Test-CopyMaster-E2E.ps1
+  .\Test-CopyMaster-E2E.ps1 -KeepTestFiles
+  .\Test-CopyMaster-E2E.ps1 -RemoteUNC "\\10.91.13.204\qw\E2E_Test" -Username "10.91.13.204\admin" -Password "SecretPass123"
 ====================================================================================================
 #>
 
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [string]$TestRoot = "C:\temp\Avgol_E2E_Test",
+    [string]$TestRoot = "C:\temp\CopyMaster_E2E_Test",
 
     [Parameter(Mandatory = $false)]
     [string]$RemoteUNC = "",
@@ -88,7 +88,7 @@ function Assert-Condition
 }
 
 Write-Host "======================================================================" -ForegroundColor Cyan
-Write-Host "         AVGOL COPY MASTER - END-TO-END AUTOMATED TEST SUITE          " -ForegroundColor Cyan
+Write-Host "         COPY MASTER - END-TO-END AUTOMATED TEST SUITE          " -ForegroundColor Cyan
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host "Execution Time  : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
 Write-Host "Working TestRoot: $TestRoot" -ForegroundColor Gray
@@ -101,9 +101,9 @@ Write-Host ""
 
 $scriptDir = $PSScriptRoot
 if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
-$uiScriptPath   = [System.IO.Path]::Combine($scriptDir, "Avgol-CopyMaster-UI.ps1")
-$coreScriptPath = [System.IO.Path]::Combine($scriptDir, "Avgol-CopyScript.ps1")
-$secScriptPath  = [System.IO.Path]::Combine($scriptDir, "Avgol-SecurityProtocols.ps1")
+$uiScriptPath   = [System.IO.Path]::Combine($scriptDir, "CopyMaster-UI.ps1")
+$coreScriptPath = [System.IO.Path]::Combine($scriptDir, "CopyScript.ps1")
+$secScriptPath  = [System.IO.Path]::Combine($scriptDir, "SecurityProtocols.ps1")
 
 # ====================================================================================================
 # STAGE 1: REPOSITORY STATIC CODE & AST SYNTAX VALIDATION
@@ -112,38 +112,38 @@ Write-Host "STAGE 1: Static Code Analysis & PowerShell AST Parser Validation" -F
 
 # Test 1.1: UI Script exists
 $uiExists = Test-Path -LiteralPath $uiScriptPath
-Assert-Condition -TestName "Verify Avgol-CopyMaster-UI.ps1 exists" -Condition $uiExists -Details $uiScriptPath
+Assert-Condition -TestName "Verify CopyMaster-UI.ps1 exists" -Condition $uiExists -Details $uiScriptPath
 
 # Test 1.2: UI Script AST Syntax Clean (0 errors)
 $uiParseErrors = $null
 if ($uiExists) {
     [System.Management.Automation.Language.Parser]::ParseFile($uiScriptPath, [ref]$null, [ref]$uiParseErrors) | Out-Null
     $uiErrCount = if ($uiParseErrors) { $uiParseErrors.Count } else { 0 }
-    Assert-Condition -TestName "Avgol-CopyMaster-UI.ps1 AST Syntax Clean" -Condition ($uiErrCount -eq 0) -Details "Errors: $uiErrCount"
+    Assert-Condition -TestName "CopyMaster-UI.ps1 AST Syntax Clean" -Condition ($uiErrCount -eq 0) -Details "Errors: $uiErrCount"
 }
 
 # Test 1.3: Core Reference Script exists
 $coreExists = Test-Path -LiteralPath $coreScriptPath
-Assert-Condition -TestName "Verify Avgol-CopyScript.ps1 exists" -Condition $coreExists -Details $coreScriptPath
+Assert-Condition -TestName "Verify CopyScript.ps1 exists" -Condition $coreExists -Details $coreScriptPath
 
 # Test 1.4: Core Reference Script AST Syntax Clean (0 errors)
 $coreParseErrors = $null
 if ($coreExists) {
     [System.Management.Automation.Language.Parser]::ParseFile($coreScriptPath, [ref]$null, [ref]$coreParseErrors) | Out-Null
     $coreErrCount = if ($coreParseErrors) { $coreParseErrors.Count } else { 0 }
-    Assert-Condition -TestName "Avgol-CopyScript.ps1 AST Syntax Clean" -Condition ($coreErrCount -eq 0) -Details "Errors: $coreErrCount"
+    Assert-Condition -TestName "CopyScript.ps1 AST Syntax Clean" -Condition ($coreErrCount -eq 0) -Details "Errors: $coreErrCount"
 }
 
 # Test 1.5: Security Protocols Module exists
 $secExists = Test-Path -LiteralPath $secScriptPath
-Assert-Condition -TestName "Verify Avgol-SecurityProtocols.ps1 exists" -Condition $secExists -Details $secScriptPath
+Assert-Condition -TestName "Verify SecurityProtocols.ps1 exists" -Condition $secExists -Details $secScriptPath
 
 # Test 1.6: Security Protocols Module AST Syntax Clean (0 errors)
 $secParseErrors = $null
 if ($secExists) {
     [System.Management.Automation.Language.Parser]::ParseFile($secScriptPath, [ref]$null, [ref]$secParseErrors) | Out-Null
     $secErrCount = if ($secParseErrors) { $secParseErrors.Count } else { 0 }
-    Assert-Condition -TestName "Avgol-SecurityProtocols.ps1 AST Syntax Clean" -Condition ($secErrCount -eq 0) -Details "Errors: $secErrCount"
+    Assert-Condition -TestName "SecurityProtocols.ps1 AST Syntax Clean" -Condition ($secErrCount -eq 0) -Details "Errors: $secErrCount"
 }
 
 # Test 1.7: Security Protocols Key Generation & Guide Execution
@@ -151,8 +151,8 @@ if ($secExists) {
     . $secScriptPath
     $testKeyDir = [System.IO.Path]::Combine($TestRoot, "SshTest")
     $testCertDir = [System.IO.Path]::Combine($TestRoot, "CertTest")
-    $sshRes = New-AvgolSSHKeyPair -KeyType "ed25519" -TargetDirectory $testKeyDir
-    $certRes = New-AvgolSelfSignedTlsCert -CommonName "e2e.test.local" -ExportDirectory $testCertDir
+    $sshRes = New-CopyMasterSSHKeyPair -KeyType "ed25519" -TargetDirectory $testKeyDir
+    $certRes = New-CopyMasterSelfSignedTlsCert -CommonName "e2e.test.local" -ExportDirectory $testCertDir
     $guideText = Get-RemoteServerSetupGuide -Protocol "SFTP" -RemoteHost "10.91.13.204" -Port 22 -RemoteUser "e2euser" -PublicKeyContent $sshRes.PublicKeyContent
 
     Assert-Condition -TestName "SSH Key Pair Generation (ed25519)" -Condition ($sshRes.Success -and $sshRes.PublicKeyContent.StartsWith("ssh-ed25519")) -Details "Key generated"
@@ -405,3 +405,4 @@ if ($script:FailedTests -eq 0) {
     Write-Host "`n>>> SOME TESTS FAILED. CHECK DETAILS ABOVE. <<<`n" -ForegroundColor Red
     exit 1
 }
+

@@ -1,6 +1,6 @@
 <#
 ====================================================================================================
-AVGOL COPY MASTER - SECURITY & PROTOCOL CRYPTOGRAPHY ENGINE
+COPY MASTER - SECURITY & PROTOCOL CRYPTOGRAPHY ENGINE
 ====================================================================================================
 Description:
 Provides 100% native PowerShell/Windows functions for:
@@ -69,13 +69,13 @@ $script:SupportedProtocols = @{
 # 1. SSH KEY GENERATION & MANAGEMENT
 # ====================================================================
 
-function New-AvgolSSHKeyPair
+function New-CopyMasterSSHKeyPair
 {
     param(
         [ValidateSet("ed25519", "rsa")]
         [string]$KeyType = "ed25519",
         [int]$KeyBits = 4096,
-        [string]$Comment = "avgol-copymaster@$(hostname)",
+        [string]$Comment = "copymaster@$(hostname)",
         [string]$TargetDirectory = "$env:USERPROFILE\.ssh"
     )
 
@@ -87,7 +87,7 @@ function New-AvgolSSHKeyPair
         }
 
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $keyName = "id_avgol_${KeyType}_$timestamp"
+        $keyName = "id_copymaster_${KeyType}_$timestamp"
         $privateKeyPath = [System.IO.Path]::Combine($TargetDirectory, $keyName)
         $publicKeyPath = "$privateKeyPath.pub"
 
@@ -149,14 +149,14 @@ function New-AvgolSSHKeyPair
 # 2. X.509 TLS / MTLS CERTIFICATE GENERATOR
 # ====================================================================
 
-function New-AvgolSelfSignedTlsCert
+function New-CopyMasterSelfSignedTlsCert
 {
     param(
-        [string]$CommonName = "avgol-copymaster.local",
+        [string]$CommonName = "copymaster.local",
         [string[]]$DnsNames = @("localhost", "127.0.0.1"),
         [int]$ValidityYears = 2,
-        [string]$ExportDirectory = "$env:USERPROFILE\Certificates\Avgol",
-        [string]$PfxPassword = "AvgolSecurePassword123!"
+        [string]$ExportDirectory = "$env:USERPROFILE\Certificates\CopyMaster",
+        [string]$PfxPassword = ""
     )
 
     try
@@ -167,7 +167,7 @@ function New-AvgolSelfSignedTlsCert
         }
 
         $allDns = @($CommonName) + $DnsNames | Select-Object -Unique
-        $certSubject = "CN=$CommonName, O=Avgol Industries, OU=Industrial Replication, C=US"
+        $certSubject = "CN=$CommonName, O=Industrial Replication, OU=File Transfer, C=US"
         $notAfter = (Get-Date).AddYears($ValidityYears)
 
         $cert = $null
@@ -185,7 +185,7 @@ function New-AvgolSelfSignedTlsCert
                 -KeyUsage DigitalSignature, KeyEncipherment, KeyAgreement `
                 -Type SSLServerAuthentication `
                 -NotAfter $notAfter `
-                -FriendlyName "Avgol Copy Master TLS Certificate ($CommonName)"
+                -FriendlyName "Copy Master TLS Certificate ($CommonName)"
         }
         else
         {
@@ -203,7 +203,7 @@ function New-AvgolSelfSignedTlsCert
 
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
         $safeCn = $CommonName -replace '[^a-zA-Z0-9_\-]', '_'
-        $basePath = [System.IO.Path]::Combine($ExportDirectory, "avgol_tls_${safeCn}_${timestamp}")
+        $basePath = [System.IO.Path]::Combine($ExportDirectory, "tls_${safeCn}_${timestamp}")
 
         $cerPath = "$basePath.cer"
         $pemCertPath = "$basePath.crt.pem"
@@ -218,7 +218,8 @@ function New-AvgolSelfSignedTlsCert
         [System.IO.File]::WriteAllText($pemCertPath, $pemCertContent, [System.Text.Encoding]::ASCII)
 
         # 2. Export PFX
-        $pfxPasswordSecure = ConvertTo-SecureString -String $PfxPassword -Force -AsPlainText
+        $effectivePass = if ([string]::IsNullOrEmpty($PfxPassword)) { "CopyMasterSecret123!" } else { $PfxPassword }
+        $pfxPasswordSecure = ConvertTo-SecureString -String $effectivePass -Force -AsPlainText
         $pfxBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, $pfxPasswordSecure)
         [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
 
@@ -474,7 +475,7 @@ function Get-RemoteServerSetupGuide
 # 4. NETWORK & PORT CONNECTIVITY TESTER
 # ====================================================================
 
-function Test-AvgolProtocolEndpoint
+function Test-CopyMasterProtocolEndpoint
 {
     param(
         [Parameter(Mandatory = $true)]

@@ -1,11 +1,11 @@
-# Avgol Copy Master
+﻿# Copy Master
 
 > **Industrial Multi-Folder Robocopy Replication & Data Lifecycle Suite**  
 > Designed for mission-critical industrial automation, vision inspection systems (EVS), and air-gapped production environments.
 
 ---
 
-## 📋 Table of Contents
+## ðŸ“‹ Table of Contents
 1. [Overview & Highlights](#-overview--highlights)
 2. [Architecture & Workflow](#-architecture--workflow)
 3. [Quick Start Guide](#-quick-start-guide)
@@ -22,12 +22,12 @@
 
 ---
 
-## 🌟 Overview & Highlights
+## ðŸŒŸ Overview & Highlights
 
-**Avgol Copy Master** provides automated, resilient, and verified file synchronization between remote machine controllers (SMB/CIFS shares) and local storage servers.
+**Copy Master** provides automated, resilient, and verified file synchronization between remote machine controllers (SMB/CIFS shares) and local storage servers.
 
 - **100% Air-Gap Compatible**: Zero external runtime dependencies. Runs natively on Windows 10/11 and Windows Server 2016/2019/2022 using pure PowerShell 5.1 and Win32 utilities (`robocopy.exe`, `schtasks.exe`, `net.exe`).
-- **Modern WPF Desktop GUI**: 1-click launcher (`Launch-AvgolCopyMaster.bat`) with automatic Administrator UAC elevation, high-contrast dark theme, and real-time console auditing.
+- **Modern WPF Desktop GUI**: 1-click launcher (`Launch-CopyMaster.bat`) with automatic Administrator UAC elevation, high-contrast dark theme, and real-time console auditing.
 - **Resilient Robocopy Core**: Uses industrial Robocopy flags (`/E`, `/Z` restartable mode, `/FFT` 2-second timestamp tolerance, `/XO` exclude older unchanged files, `/R:5 /W:15` automatic retry with wait, `/NP /TEE /LOG+`).
 - **Complete Data Lifecycle Management**:
   - **Verified Source Cleanup**: Safely deletes source files older than $X$ days **only after** verifying that the file exists at the local destination with an identical byte count.
@@ -37,44 +37,44 @@
 
 ---
 
-## 🏗 Architecture & Workflow
+## ðŸ— Architecture & Workflow
 
 ```
 [ Remote Machine Controller / SMB Share ]
     e.g. \\10.91.13.204\qw\Test1\*.csv
-                     │
-                     │  (1) Authenticate session (net use)
-                     │  (2) Robocopy sync (/E /Z /FFT /XO /XD 20* /XF <archived>)
-                     ▼
+                     â”‚
+                     â”‚  (1) Authenticate session (net use)
+                     â”‚  (2) Robocopy sync (/E /Z /FFT /XO /XD 20* /XF <archived>)
+                     â–¼
 [ Local Destination Storage ]
     e.g. C:\temp\TEST\data1\
-         ├── file_today.csv          <-- Current Month Data (Kept at root)
-         │
-         ├── [ 2026-09 ]             <-- Auto-Archived Previous Months
-         │   └── file_sept.csv
-         │
-         └── [ 2026-08 ]             <-- Auto-Archived Previous Months
-             └── file_aug.csv
-                     │
-                     │  (3) Monthly Auto-Archive: Moves files < CurrentMonth into YYYY-MM
-                     │  (4) Archive Purge: Deletes YYYY-MM folders older than X months
-                     │  (5) Source Cleanup: Deletes verified remote files older than X days
-                     ▼
+         â”œâ”€â”€ file_today.csv          <-- Current Month Data (Kept at root)
+         â”‚
+         â”œâ”€â”€ [ 2026-09 ]             <-- Auto-Archived Previous Months
+         â”‚   â””â”€â”€ file_sept.csv
+         â”‚
+         â””â”€â”€ [ 2026-08 ]             <-- Auto-Archived Previous Months
+             â””â”€â”€ file_aug.csv
+                     â”‚
+                     â”‚  (3) Monthly Auto-Archive: Moves files < CurrentMonth into YYYY-MM
+                     â”‚  (4) Archive Purge: Deletes YYYY-MM folders older than X months
+                     â”‚  (5) Source Cleanup: Deletes verified remote files older than X days
+                     â–¼
 [ Audited Logs ]
     C:\temp\TEST\Logs\
-    ├── Robocopy_Current.log         <-- High-level operational summary
-    ├── Robocopy_Detail.log          <-- Detailed Robocopy file-by-file log
-    └── Robocopy_YYYYMMDD_HHMMSS.log <-- Auto-rotated archives (Max 20, 10MB each)
+    â”œâ”€â”€ Robocopy_Current.log         <-- High-level operational summary
+    â”œâ”€â”€ Robocopy_Detail.log          <-- Detailed Robocopy file-by-file log
+    â””â”€â”€ Robocopy_YYYYMMDD_HHMMSS.log <-- Auto-rotated archives (Max 20, 10MB each)
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## ðŸš€ Quick Start Guide
 
 ### Step 1: Launch the Configurator
-Right-click or double-click `Launch-AvgolCopyMaster.bat`.
+Right-click or double-click `Launch-CopyMaster.bat`.
 - The launcher automatically detects if administrative privileges are present. If not, Windows prompts for UAC elevation.
-- The **Avgol Copy Master** GUI window opens.
+- The **Copy Master** GUI window opens.
 
 ### Step 2: Configure Remote SMB Credentials
 1. In **Section 1 (Remote Source Authentication)**, enter the domain or IP username (e.g., `10.91.13.204\admin`).
@@ -99,7 +99,7 @@ In **Section 3 (Data Lifecycle & Archive Policies)**:
 1. In **Section 4 (Deployment & Task Scheduler)**:
    - **Target Script Folder**: Where the production script will be saved (e.g., `C:\Scripts`).
    - **Script File Name**: `copy-script.ps1`.
-   - **Scheduled Task Name**: `Avgol Copy Master` (or `Copy Script v3`).
+   - **Scheduled Task Name**: `Copy Master` (or `Copy Script v3`).
    - **Interval**: Execution frequency in minutes (e.g., `1` or `5` minutes).
 2. Click **Deploy Script & Install Scheduled Task**.
    - The UI validates the PowerShell script using the language parser (0 syntax errors guaranteed).
@@ -109,10 +109,10 @@ In **Section 3 (Data Lifecycle & Archive Policies)**:
 
 ---
 
-## ⚙️ Feature Reference
+## âš™ï¸ Feature Reference
 
 ### 1. Multi-Protocol Engine & Default Ports
-Avgol Copy Master supports diverse industrial and enterprise file transfer protocols:
+Copy Master supports diverse industrial and enterprise file transfer protocols:
 - **SMB / CIFS (Port 445)**: Standard Windows Network File Sharing (Robocopy restartable mode, SMBv2/SMBv3).
 - **SFTP (Port 22)**: Encrypted SSH File Transfer Protocol.
 - **SCP (Port 22)**: Secure Copy Protocol over SSH.
@@ -124,7 +124,7 @@ Avgol Copy Master supports diverse industrial and enterprise file transfer proto
 For SSH-based transfers (SFTP and SCP):
 - **Paste Existing Keys**: Paste your existing private and public keys into the GUI wizard.
 - **Auto-Generate Keys**: In one click, generate modern high-security `ed25519` key pairs (or 4096-bit RSA).
-- **Export Paths**: Private keys are safely stored in `$env:USERPROFILE\.ssh\id_avgol_*`.
+- **Export Paths**: Private keys are safely stored in `$env:USERPROFILE\.ssh\id__*`.
 
 ### 3. X.509 TLS / mTLS Certificate Wizard
 For TLS-based protocols (FTPS and WebDAV):
@@ -156,12 +156,12 @@ Click **Remote Server Setup & Firewall Guide** in the GUI header to view step-by
 
 ---
 
-## 🖥 Viewing & Managing in Windows Task Scheduler
+## ðŸ–¥ Viewing & Managing in Windows Task Scheduler
 
 ### How to Inspect the Task in Windows GUI (`taskschd.msc`)
 1. Press `Win + R`, type **`taskschd.msc`**, and press Enter.
 2. In the left navigation tree, select **Task Scheduler Library**.
-3. In the center pane, find your task name (e.g., **`Copy Script v3`** or **`Avgol Copy Master`**).
+3. In the center pane, find your task name (e.g., **`Copy Script v3`** or **`Copy Master`**).
 4. Review key properties:
    - **Status**: Should display `Ready` or `Running`.
    - **Triggers**: Displays the repetition interval (e.g., `At 12:00 AM every day - After triggered, repeat every 1 minute indefinitely`).
@@ -192,7 +192,7 @@ schtasks /Delete /TN "Copy Script v3" /F
 
 ---
 
-## 📊 Logs, Auditing & Rotation
+## ðŸ“Š Logs, Auditing & Rotation
 
 ### Log Locations
 All logs are written to the configured **Log Directory** (default: `C:\temp\TEST\Logs` or `C:\Scripts\Logs`):
@@ -210,7 +210,7 @@ All logs are written to the configured **Log Directory** (default: `C:\temp\TEST
 
 ---
 
-## 🔧 Comprehensive Troubleshooting & Diagnostics Guide
+## ðŸ”§ Comprehensive Troubleshooting & Diagnostics Guide
 
 ### 1. Robocopy Exit Codes Reference
 Robocopy uses bitmap exit codes where values $\le 7$ are non-fatal successes:
@@ -262,25 +262,25 @@ Robocopy uses bitmap exit codes where values $\le 7$ are non-fatal successes:
 
 ---
 
-## 🧪 Automated End-to-End Testing (E2E)
+## ðŸ§ª Automated End-to-End Testing (E2E)
 
-Avgol Copy Master includes a native, 21-point automated test suite [`Test-AvgolCopyMaster-E2E.ps1`](file:///c:/Projects/Companies/Avgol/Copy-Script/Test-AvgolCopyMaster-E2E.ps1) for validating complete system health without requiring manual configuration.
+Copy Master includes a native, 21-point automated test suite [`Test-CopyMaster-E2E.ps1`](file:///c:/Projects/Companies//Copy-Script/Test-CopyMaster-E2E.ps1) for validating complete system health without requiring manual configuration.
 
 ### How to Run
 
 #### Option A: Offline Local Sandbox Mode (Recommended for Air-Gapped Machines)
 Requires no network shares, domain controllers, or internet connection:
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1
+powershell.exe -ExecutionPolicy Bypass -File .\Test-CopyMaster-E2E.ps1
 ```
 
 #### Option B: Live SMB Remote Share Testing
 Validates against an active network UNC share with credentials:
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1 `
+powershell.exe -ExecutionPolicy Bypass -File .\Test-CopyMaster-E2E.ps1 `
     -RemoteUNC "\\10.91.13.204\qw\E2E_Test" `
     -Username "10.91.13.204\admin" `
-    -Password "Avgol2002"
+    -Password "2002"
 ```
 
 ### What is Verified Automatically:
@@ -298,16 +298,17 @@ powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1 `
 
 ---
 
-## 🔒 Air-Gapped Deployment Checklist
+## ðŸ”’ Air-Gapped Deployment Checklist
 
 When deploying to an isolated industrial plant without internet access:
 
-1. **Copy Repository**: Copy the entire repository folder to the plant workstation or server (e.g., `C:\Avgol-CopyMaster\`).
+1. **Copy Repository**: Copy the entire repository folder to the plant workstation or server (e.g., `C:\CopyMaster\`).
 2. **Verify Dependencies**: Confirm standard Windows utilities exist:
    - `powershell.exe` (Windows PowerShell 5.1 built into Windows 10/11/Server).
    - `robocopy.exe` (built into `C:\Windows\System32\`).
    - `schtasks.exe` (built into `C:\Windows\System32\`).
-3. **Run Self-Test**: Run `powershell.exe -ExecutionPolicy Bypass -File .\Test-AvgolCopyMaster-E2E.ps1` to confirm system functionality (21/21 passes).
-4. **Launch**: Double-click `Launch-AvgolCopyMaster.bat`.
+3. **Run Self-Test**: Run `powershell.exe -ExecutionPolicy Bypass -File .\Test-CopyMaster-E2E.ps1` to confirm system functionality (21/21 passes).
+4. **Launch**: Double-click `Launch-CopyMaster.bat`.
 5. **Configure & Deploy**: Set Source UNC paths, local destinations, credentials, and click **Deploy Script & Install Scheduled Task**.
 6. **Verify**: Open `C:\Scripts\Logs\Robocopy_Current.log` to confirm continuous replication cycles.
+
