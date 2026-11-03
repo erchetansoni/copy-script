@@ -650,10 +650,10 @@ if (Test-Path -LiteralPath $secModule)
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Run As User -->
+                            <!-- Run As User & Password -->
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Run As Account (Task Scheduler)" Style="{StaticResource FieldLabel}"/>
-                                <TextBox x:Name="txtRunAsUser" Height="28" Text="SYSTEM"/>
+                                <TextBlock Text="Run As Account (e.g. DOMAIN\User, Administrator)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtRunAsUser" Height="28" Text="Administrator" ToolTip="User account for Task Scheduler execution. E.g. Administrator, DOMAIN\SA_ServiceAccount, or SYSTEM."/>
                             </StackPanel>
 
                             <!-- Max Log Size MB -->
