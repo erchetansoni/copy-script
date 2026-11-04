@@ -1,0 +1,38 @@
+# ====================================================================
+# COPY MASTER CONFIGURATION (INDUSTRIAL MULTI-PROTOCOL REPLICATION)
+# Native Single-Binary Edition (Windows / Linux)
+# ====================================================================
+
+sync_direction: Push
+protocol: SFTP
+endpoint:
+    host: ""
+    port: 22
+    username: ""
+    password: ""
+    private_key_path: ""
+    key_passphrase: ""
+mappings:
+    - name: Production Data
+      source: ./data_source
+      destination: ./data_dest
+      file_types:
+        - '*.csv'
+      enabled: true
+lifecycle:
+    enable_source_delete: false
+    source_delete_days: 30
+    enable_dest_monthly_archive: true
+    enable_dest_archive_delete: false
+    dest_archive_delete_months: 6
+logging:
+    log_folder: ./logs
+    max_log_size_mb: 10
+    max_archived_logs: 20
+    log_retention_days: 30
+    console_output: true
+scheduler:
+    interval_seconds: 60
+    run_once: false
+    retry_attempts: 5
+    retry_wait_seconds: 15

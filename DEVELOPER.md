@@ -1,11 +1,11 @@
-# Copy Master - Developer & Architecture Guide
+﻿# Copy Master - Developer & Architecture Guide
 
 > **Technical Reference, Component Architecture & Internals**  
 > For software engineers, systems programmers, and automation developers maintaining or extending the Copy Master codebase.
 
 ---
 
-## 🏗 High-Level System Architecture
+## ðŸ— High-Level System Architecture
 
 ```mermaid
 graph TD
@@ -29,7 +29,43 @@ graph TD
 
 ---
 
-## 📁 Repository Structure & Roles
+## ðŸ“ Repository Structure & Roles
+
+| Directory / File | Language | Purpose | Runtime Context |
+| :--- | :--- | :--- | :--- |
+| **Launch-CopyMaster.bat** | Windows Batch | Root menu launcher; starts either Modern Go TUI or Legacy PowerShell GUI. | Interactive CLI |
+| **go/** | Go 1.26 (Charm) | Modern, air-gapped standalone suite built with Bubble Tea, Bubbles, Lip Gloss, and Huh. Cross-compiled for Windows and Linux. | Standalone Binary (copymaster.exe) |
+| **legacy/** | PowerShell 5.1 / WPF | Original Windows PowerShell 5.1 & WPF desktop GUI implementation. | Elevated Administrator (powershell.exe) |
+| **README.md** | Markdown | Comprehensive Operator & User Guide. | Documentation |
+| **DEVELOPER.md** | Markdown | Technical architecture, component specifications, and developer manual (this file). | Documentation |neers, systems programmers, and automation developers maintaining or extending the Copy Master codebase.
+
+---
+
+## ðŸ— High-Level System Architecture
+
+```mermaid
+graph TD
+    A[Launch-CopyMaster.bat] -->|Check UAC / Elevate| B[CopyMaster-UI.ps1]
+    B -->|XAML Parsing| C[WPF GUI Presentation Layer]
+    C -->|Read / Pre-populate| D[CopyScript.ps1]
+    C -->|User Interaction| E[In-Memory Config State]
+    E -->|Template Interpolation| F[Code Generation Engine]
+    F -->|AST Parser Validation| G[System.Management.Automation.Language.Parser]
+    G -->|Clean 0-Errors| H[C:\Scripts\copy-script.ps1]
+    H -->|Register Service| I[Windows Task Scheduler schtasks.exe]
+    I -->|Continuous Background Trigger| H
+    H -->|Authentication| J[SMB Session Manager net.exe]
+    H -->|Synchronization| K[Robocopy Engine robocopy.exe]
+    H -->|Post-Copy Subsystems| L[Data Lifecycle Engines]
+    L --> L1[Destination Monthly Auto-Archive]
+    L --> L2[Destination Archive Purge]
+    L --> L3[Verified Source File Cleanup]
+    H --> M[Dual Log Rotation Engine]
+```
+
+---
+
+## ðŸ“ Repository Structure & Roles
 
 | File | Language | Purpose | Runtime Context |
 | :--- | :--- | :--- | :--- |
@@ -43,7 +79,7 @@ graph TD
 
 ---
 
-## 🧩 Detailed Component Specifications
+## ðŸ§© Detailed Component Specifications
 
 ### 1. Presentation Layer (WPF via Native PowerShell)
 - **Framework**: Built on `System.Windows.PresentationFramework` and `System.Windows.Markup.XamlReader`.
@@ -170,16 +206,16 @@ graph TD
 - **Dual-Location Verification Algorithm**:
   ```
   Does File Exist at Dest Root?
-       ├── YES: Check (DestLength == SourceLength)
-       │         └── MATCH: Verified -> Safe to Delete from Source
-       │         └── MISMATCH: Skipped -> Pending Copy
-       │
-       └── NO: Does File Exist in Dest Monthly Archive (Dest\YYYY-MM\File)?
-                 ├── YES: Check (ArchiveLength == SourceLength)
-                 │         └── MATCH: Verified -> Safe to Delete from Source
-                 │         └── MISMATCH: Skipped -> Pending Copy
-                 │
-                 └── NO: Skipped -> Never copied to destination
+       â”œâ”€â”€ YES: Check (DestLength == SourceLength)
+       â”‚         â””â”€â”€ MATCH: Verified -> Safe to Delete from Source
+       â”‚         â””â”€â”€ MISMATCH: Skipped -> Pending Copy
+       â”‚
+       â””â”€â”€ NO: Does File Exist in Dest Monthly Archive (Dest\YYYY-MM\File)?
+                 â”œâ”€â”€ YES: Check (ArchiveLength == SourceLength)
+                 â”‚         â””â”€â”€ MATCH: Verified -> Safe to Delete from Source
+                 â”‚         â””â”€â”€ MISMATCH: Skipped -> Pending Copy
+                 â”‚
+                 â””â”€â”€ NO: Skipped -> Never copied to destination
   ```
 - Files that do not meet verification criteria are never deleted from source.
 
@@ -194,7 +230,83 @@ graph TD
 
 ---
 
-## 🛠 Testing & Validation Procedures
+
+---
+
+## ðŸ›¡ï¸ Go Standalone Architecture & EDR False-Positive Mitigation
+
+To satisfy enterprise industrial security requirements where host intrusion detection systems (EDR) monitor script execution, Copy Master provides a complete, statically compiled Go implementation alongside the PowerShell GUI configurator.
+
+### Component Structure (cmd/ & internal/)
+
+`
+copymaster/
+├── cmd/
+│   └── copymaster/
+│       ├── main.go                       # CLI entry point, flag parser, signal handler
+│       ├── console_windows.go            # Windows console double-click detector
+│       ├── console_other.go              # Non-windows console fallback
+│       ├── versioninfo.json              # Windows PE metadata definition
+│       └── resource_windows_amd64.syso   # Compiled Windows PE resource & manifest
+├── internal/
+│   ├── config/                           # YAML config loader, serializer & validator
+│   ├── engine/
+│   │   ├── engine.go                     # Cycle runner and background daemon scheduler
+│   │   ├── replicator.go                 # File synchronization with Robocopy /XO /FFT semantics
+│   │   └── lifecycle.go                  # Monthly auto-archive, archive purge, verified cleanup
+│   ├── logger/                           # Thread-safe dual logger with dynamic listener & rotation
+│   ├── protocol/
+│   │   ├── fs.go                         # Virtual File System (VFS) interface
+│   │   ├── local.go                      # Native OS filesystem & Windows UNC implementation
+│   │   └── sftp.go                       # In-process pure Go SFTP/SSH implementation
+│   └── tui/                              # Air-Gapped Terminal User Interface (TUI)
+│       ├── app.go                        # Main interactive TUI application & layout (tview)
+│       ├── modals.go                     # Overlay modals (Connection test, SSH wizard, Guide)
+│       ├── guide.go                      # Multi-protocol remote server setup guide generator
+│       ├── sshkeygen.go                  # Air-gapped Ed25519 SSH keypair generator & saver
+│       └── script_parser.go              # Parser to import from PowerShell scripts or YAML
+├── build/
+│   ├── Build-Binaries.ps1                # Automated Windows build script with test execution
+│   └── build.sh                          # Automated Linux/macOS cross-compilation script
+└── bin/
+    ├── copymaster.exe                    # Windows 64-bit standalone executable (~6.7 MB)
+    ├── copymaster-linux-amd64            # Linux x86_64 statically linked binary (~6.5 MB)
+    └── copymaster-linux-arm64            # Linux ARM64 statically linked binary (~6.1 MB)
+`
+
+### Air-Gapped Terminal User Interface (TUI) Architecture
+
+The interactive TUI runs entirely inside the terminal screen buffer using github.com/rivo/tview and github.com/gdamore/tcell/v2:
+- **100% Air-Gapped**: Opens zero network ports, launches no web browser, and requires no external graphical server.
+- **Section 1: Protocol & Endpoint Authentication Form**: Allows configuring Protocol (SFTP, SCP, SMB, FTPS, FTP, WebDAV, Local), direction (Push, Pull, Local), Host, Port, Username, Password, and SSH Key.
+- **Section 2: Folder Mappings Table**: Interactive table with row selection, status toggling, and input fields to add/remove mappings.
+- **Section 3: Data Lifecycle & Scheduler Policies**: Configures verified source deletion, monthly archiving (YYYY-MM), archive purging, daemon intervals, and log retention.
+- **Section 4: Live Auditing Console**: Real-time streaming log display capturing operational messages and replication progress with color-coded severity.
+- **Wizards & Modals**:
+  - SSH Key Wizard: Generates native Ed25519 key pairs and saves them with appropriate permissions.
+  - Server Setup Guide: Displays protocol-specific firewall and uthorized_keys instructions.
+  - Test Connection: Asynchronously verifies network reachability and credentials.
+  - Import / Open: Automatically loads and converts configuration from existing PowerShell replication scripts or YAML files.
+- **Keyboard Navigation**:
+  - Tab / Shift-Tab: Cycle focus between input forms, tables, and console.
+  - F2: Trigger immediate replication cycle (Run Sync Now).
+  - F3: Save active configuration to YAML.
+  - F4: Test remote connection.
+  - F5: Open / load existing configuration or script.
+  - F6: Display Remote Server Setup Guide.
+  - F7: Launch SSH Key Wizard.
+  - F10: Exit application cleanly.
+### EDR False-Positive Prevention Principles
+
+| Risk Vector in Script Automations | How Copy Master (Go Edition) Solves It |
+| :--- | :--- |
+| **Command-Line Credential Visibility** | `net.exe use \share /user:admin pass` exposes credentials in process command lines. In Go, SMB and SFTP authentication occurs entirely in-process memory without launching external commands. |
+| **Script Execution Policy Alerts** | Calling `powershell.exe -ExecutionPolicy Bypass` triggers heuristic script-block logging and EDR alerts. The Go binary compiles directly to native machine code. |
+| **Anonymous / Unknown PE Flags** | Bare compiled binaries lack PE version tags. Copy Master embeds standard `VersionInfo` resources (`CompanyName`, `FileDescription`, `LegalCopyright`, `ProductVersion`) and an application manifest (`requestedExecutionLevel level="asInvoker"`). |
+| **High Entropy / Packer Signatures** | Malware packers (such as UPX) trigger heuristic antivirus flags. Copy Master is distributed uncompressed with normal entropy. |
+| **Partial / Incomplete Write Failures** | File transfers write to `.tmp` files with byte flushing (`Sync()`) and timestamp preservation (`Chtimes`) before atomic renaming. |
+
+## ðŸ›  Testing & Validation Procedures
 
 ### 1. Static Syntax & AST Check
 Run on any script in the repository:
@@ -241,7 +353,7 @@ The repository includes a comprehensive, 21-point automated test suite: [`Test-C
 
 ---
 
-## 💡 Guidelines for Extending the Codebase
+## ðŸ’¡ Guidelines for Extending the Codebase
 
 1. **Maintain Zero External Dependencies**: Do not introduce NuGet packages, node modules, or third-party DLLs. All functionality must execute using built-in Windows PowerShell 5.1 and standard Windows system utilities.
 2. **Preserve Air-Gap Isolation**: Do not add telemetry, web requests, or online verification endpoints.

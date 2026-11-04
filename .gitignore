@@ -1,0 +1,13 @@
+# Binaries & build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+.gotmp/
+
+# Logs & temp data
+logs/
+*.log
+*.tmp
+

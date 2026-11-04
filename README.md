@@ -22,6 +22,26 @@
 
 ---
 
+## 📁 Project Structure
+
+The repository is cleanly divided into two independent editions:
+
+1. **go/ — Modern Go Standalone Edition (Recommended)**
+   - **Framework**: Built with the **Charm Toolchain** ([Bubble Tea](https://github.com/charmbracelet/bubbletea), [Bubbles](https://github.com/charmbracelet/bubbles), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Huh](https://github.com/charmbracelet/huh)).
+   - **EDR & Antivirus Safe**: Statically compiled single binary (copymaster.exe, copymaster-linux-amd64). No PowerShell, no external shells, in-process SFTP/SMB.
+   - **100% Air-Gapped**: Runs in any terminal or command prompt with full mouse support, interactive forms, and live streaming audit logs.
+   - See [go/README.md](go/README.md) for detailed documentation.
+
+2. **legacy/ — Original PowerShell 5.1 & WPF Desktop GUI**
+   - **Framework**: Windows Presentation Foundation (WPF) with pure PowerShell 5.1 (CopyMaster-UI.ps1, CopyScript.ps1).
+   - Preserved for backwards compatibility and reference.
+   - See [legacy/README.md](legacy/README.md).
+
+3. **Launch-CopyMaster.bat** (Root Launcher)
+   - Menu launcher that lets you choose between the Modern Go Agent or the Legacy WPF GUI in one click.
+
+---
+
 ## 🌟 Overview & Highlights
 
 **Copy Master** provides automated, resilient, and verified file synchronization between remote machine controllers (SMB/CIFS shares) and local storage servers.
@@ -261,6 +281,99 @@ Robocopy uses bitmap exit codes where values $\le 7$ are non-fatal successes:
 ---
 
 ---
+
+
+---
+
+## ⚡ Native Standalone Binary & EDR-Safe Architecture (Go Edition)
+
+For environments with strict **EDR (Endpoint Detection and Response)** policies (Microsoft Defender for Endpoint / ATP, Check Point Harmony Endpoint, CrowdStrike Falcon, SentinelOne) or cross-platform Linux controllers, Copy Master provides a **100% standalone, statically compiled Go binary**.
+
+### Highlights
+- **Single Portable Executable**: Zero external runtime dependencies. No PowerShell, no Python, no .NET runtime required. Just copy `copymaster.exe` (Windows) or `copymaster-linux-amd64` (Linux) and run.
+- **EDR & Antivirus Safe by Design**:
+  - **No Shell Spawning**: Eliminates `cmd.exe`, `powershell.exe -ExecutionPolicy Bypass`, and `net.exe use` invocations that trigger process creation heuristics and credential sniffing alarms.
+  - **In-Process Network Protocols**: SFTP and SSH transfers run entirely in-process using native Go cryptography (`golang.org/x/crypto/ssh` and `github.com/pkg/sftp`).
+  - **Embedded Windows PE Metadata & Manifest**: Includes valid `CompanyName`, `FileDescription`, `ProductVersion`, `LegalCopyright`, and an embedded application manifest (`requestedExecutionLevel level="asInvoker"`), preventing "unknown/anonymous binary" reputation flags.
+  - **Zero Packing**: Clean, uncompressed standard Go executable (no UPX or obfuscators that artificially spike file entropy).
+  - **Safe Atomic File Writes**: Streams incoming data to a temporary file (`.tmp`), computes byte sizes, preserves source timestamps (`os.Chtimes`), and atomically renames to destination.
+- **Cross-Platform**: Natively compiled for **Windows (amd64)** and **Linux (amd64 / arm64)**.
+
+### Interactive Air-Gapped Terminal User Interface (TUI)
+
+Copy Master includes an **interactive Terminal User Interface (TUI)** that runs directly in your console (Windows PowerShell, Command Prompt, Windows Terminal, Linux SSH / bash):
+- **100% Air-Gapped**: Zero web browsers, zero HTTP listening ports, zero third-party runtime dependencies.
+- **Full Feature Parity**: Matches the layout, controls, and workflows of the original desktop GUI:
+  - **Header Bar**: Live status display showing active Protocol, Sync Direction, and Config path.
+  - **Section 1: Protocol & Endpoint Authentication**: Protocol selector (SFTP, SCP, SMB, FTPS, FTP, WebDAV, Local), Direction selector (Push, Pull, Local), Host, Port, Username, Password, and SSH Key.
+  - **Section 2: Folder Mappings Table**: Interactive table with row selection, status toggling, and input fields to add/remove mappings.
+  - **Section 3: Data Lifecycle & Archive Policies**: Verified source deletion threshold (days), monthly archive organization (YYYY-MM), and historical archive purging (months).
+  - **Section 4: Scheduling & Log Policies**: Polling interval, log directory, max log file size, and retention days.
+  - **Section 5: Live Streaming Console**: Real-time scrolling audit log with color-coded severity.
+  - **SSH Key Wizard**: Generates native Ed25519 key pairs and saves them with appropriate permissions.
+  - **Remote Server Setup Guide**: Step-by-step instructions and copy-paste commands for Linux SSH, Windows OpenSSH, and firewall rules.
+  - **Script & Config Importer**: Open and parse existing PowerShell scripts (CopyScript.ps1) or YAML configurations.
+
+#### TUI Keyboard Shortcuts
+| Key | Action |
+| :--- | :--- |
+| **Tab / Shift+Tab** | Move focus between input panels, tables, and buttons |
+| **F2** | **Run Sync Now** (Triggers immediate replication with live console streaming) |
+| **F3** | **Save Configuration** to config.yaml |
+| **F4** | **Test Connection** (Active endpoint connectivity check modal) |
+| **F5** | **Open / Import** (Load from existing YAML or PowerShell script) |
+| **F6** | **Remote Server Setup Guide** (Firewall & uthorized_keys modal) |
+| **F7** | **SSH Key Wizard** (Generate & save Ed25519 key pairs) |
+| **F10** | **Quit Copy Master** |
+
+---
+
+### Quick Start with the Standalone Binary
+
+1. **Launch Interactive Terminal UI (Air-Gapped)**:
+   `ash
+   # Windows (or simply double-click copymaster.exe)
+   .\bin\copymaster.exe
+
+   # Linux
+   ./bin/copymaster-linux-amd64
+   `
+
+2. **Generate Configuration Template**:
+   ```bash
+   # Windows
+   .\bin\copymaster.exe -init-config config.yaml
+
+   # Linux
+   ./bin/copymaster-linux-amd64 -init-config config.yaml
+   ```
+
+2. **Execute Single Replication Cycle (Task Scheduler / Cron)**:
+   ```bash
+   copymaster.exe -config config.yaml -once
+   ```
+
+3. **Run Continuously as a Background Daemon**:
+   ```bash
+   copymaster.exe -config config.yaml -daemon
+   ```
+
+4. **Verify Connectivity**:
+   ```bash
+   copymaster.exe -config config.yaml -test
+   ```
+
+### Building Binaries from Source
+To compile all cross-platform standalone binaries (`Windows amd64`, `Linux amd64`, `Linux arm64`):
+- **Windows (PowerShell)**:
+  ```powershell
+  .\build\Build-Binaries.ps1
+  ```
+- **Linux / macOS (Bash)**:
+  ```bash
+  chmod +x ./build/build.sh && ./build/build.sh
+  ```
+All output executables are placed in the `bin/` directory.
 
 ## 🧪 Automated End-to-End Testing (E2E)
 
